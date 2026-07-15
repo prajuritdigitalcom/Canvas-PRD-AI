@@ -24,11 +24,6 @@ export default function SettingsView({
     const trimmedKey = newKey.trim();
     if (!trimmedKey) return;
 
-    if (!trimmedKey.startsWith('AIzaSy')) {
-      setErrorMsg('Format API Key Gemini biasanya diawali dengan "AIzaSy". SIlakan periksa kembali.');
-      return;
-    }
-
     if (userApiKeys.includes(trimmedKey)) {
       setErrorMsg('API Key ini sudah ditambahkan sebelumnya.');
       return;
@@ -135,7 +130,7 @@ export default function SettingsView({
                   setNewKey(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder="Masukkan API Key Gemini (AIzaSy...)"
+                placeholder="Masukkan API Key Gemini..."
                 className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-primary transition-all pr-12 font-mono text-zinc-800"
               />
               <button
