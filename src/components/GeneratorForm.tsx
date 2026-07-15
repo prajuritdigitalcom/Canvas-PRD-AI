@@ -313,7 +313,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                 : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
             }`}
           >
-            AI Auto Mode (Recommended)
+            AI Auto Mode
           </button>
           <button
             type="button"
@@ -348,7 +348,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                 : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
             }`}
           >
-            Manual Mode (Advanced)
+            Manual Mode
           </button>
         </div>
       </div>
