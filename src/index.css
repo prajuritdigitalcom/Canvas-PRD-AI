@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Plus Jakarta Sans", var(--font-sans);
+  
+  --color-primary: #fe4c6f;
+  --color-primary-hover: #e03b5d;
+  --color-secondary: #111827;
+  --color-accent: #3b82f6;
+}
+
+/* Custom styles for professional scrollbars, glass effect, markdown, etc. */
+body {
+  @apply bg-zinc-50 text-zinc-900 font-sans transition-colors duration-200 antialiased selection:bg-rose-100 selection:text-rose-700;
+}
+
+.dark body {
+  @apply bg-zinc-950 text-zinc-100 selection:bg-rose-950 selection:text-rose-300;
+}
+
+/* Pro Markdown Styles */
+.markdown-body h1 {
+  @apply text-2xl font-bold font-display mt-6 mb-4 text-zinc-900 border-b border-zinc-200 pb-2 dark:text-white dark:border-zinc-800;
+}
+.markdown-body h2 {
+  @apply text-xl font-semibold font-display mt-5 mb-3 text-zinc-800 dark:text-zinc-200;
+}
+.markdown-body h3 {
+  @apply text-lg font-medium font-display mt-4 mb-2 text-zinc-700 dark:text-zinc-300;
+}
+.markdown-body p {
+  @apply text-sm leading-relaxed mb-4 text-zinc-600 dark:text-zinc-400;
+}
+.markdown-body ul {
+  @apply list-disc pl-5 mb-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-1;
+}
+.markdown-body ol {
+  @apply list-decimal pl-5 mb-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-1;
+}
+.markdown-body blockquote {
+  @apply border-l-4 border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 px-4 py-2 italic my-4 rounded-r-md text-sm text-zinc-700 dark:text-zinc-300;
+}
+.markdown-body code {
+  @apply font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-rose-600 dark:text-rose-400;
+}
+.markdown-body pre {
+  @apply bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono border border-zinc-800 shadow-inner;
+}
+.markdown-body pre code {
+  @apply bg-transparent p-0 text-zinc-100;
+}
+.markdown-body table {
+  @apply w-full border-collapse my-4 text-sm;
+}
+.markdown-body th {
+  @apply bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-left font-semibold;
+}
+.markdown-body td {
+  @apply border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-zinc-600 dark:text-zinc-400;
+}
+

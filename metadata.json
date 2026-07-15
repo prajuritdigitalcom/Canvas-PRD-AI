@@ -1,0 +1,6 @@
+{
+  "name": "Canvas PRD AI",
+  "description": "Transform raw website briefs into professional Product Requirement Documents optimized for Gemini Canvas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

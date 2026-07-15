@@ -1,0 +1,334 @@
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import GeneratorForm from './components/GeneratorForm';
+import OutputView from './components/OutputView';
+import SettingsView from './components/SettingsView';
+import AboutView from './components/AboutView';
+import { ProjectFormState, PRDGenerateResponse } from './types';
+import { Sparkles, AlertCircle, Info, X, Check, Save } from 'lucide-react';
+
+const DEFAULT_FORM_STATE: ProjectFormState = {
+  projectName: '',
+  websiteType: 'Company Profile',
+  targetAudience: [],
+  goalWebsite: [],
+  projectLanguage: 'Indonesia',
+  referenceInformation: '',
+  referenceLinks: [],
+  brandStyles: [],
+  animationLevel: 'Medium',
+  illustrationStyle: 'Flat',
+  preferredTone: 'Professional',
+  primaryColor: '#fe4c6f',
+  secondaryColor: '#111827',
+  accentColor: '#3b82f6',
+  autoGenerateColors: true,
+  typography: 'Inter',
+  seoPreferences: ['Semantic HTML', 'Fast Loading', 'Heading Structure', 'Accessibility'],
+  aiMode: 'Balanced',
+  creativitySlider: 50,
+  reasoningLevel: 'Standard',
+  extraInstruction: ''
+};
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('generator');
+  const [hasSystemApiKey, setHasSystemApiKey] = useState(false);
+  const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
+  const [isDraftSaved, setIsDraftSaved] = useState(false);
+
+  const [formState, setFormState] = useState<ProjectFormState>(DEFAULT_FORM_STATE);
+  const [responseData, setResponseData] = useState<PRDGenerateResponse | null>(null);
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // 1. Initial configuration and state restoration on mount
+  useEffect(() => {
+    // Force Light Mode
+    document.documentElement.classList.remove('dark');
+
+    // Restore Form Draft from Local Storage
+    const savedForm = localStorage.getItem('canvas_prd_form_draft');
+    if (savedForm) {
+      try {
+        setFormState(JSON.parse(savedForm));
+      } catch (e) {
+        console.error('Gagal memulihkan draf form:', e);
+      }
+    }
+
+    // Restore response data if exists
+    const savedResponse = localStorage.getItem('canvas_prd_response_data');
+    if (savedResponse) {
+      try {
+        setResponseData(JSON.parse(savedResponse));
+      } catch (e) {
+        console.error('Gagal memulihkan data PRD sebelumnya:', e);
+      }
+    }
+
+    // Restore Backup User Keys from Session Storage
+    const savedUserKeys = sessionStorage.getItem('canvas_prd_user_api_keys');
+    if (savedUserKeys) {
+      try {
+        setUserApiKeys(JSON.parse(savedUserKeys));
+      } catch (e) {
+        console.error('Gagal memulihkan API Keys cadangan:', e);
+      }
+    } else {
+      // Legacy single key migration
+      const legacyKey = sessionStorage.getItem('canvas_prd_user_api_key') || '';
+      if (legacyKey) {
+        setUserApiKeys([legacyKey]);
+      }
+    }
+
+    // Query system API status on backend
+    fetch('/api/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          setHasSystemApiKey(data.hasSystemApiKey);
+        }
+      })
+      .catch(err => {
+        console.error('Gagal mengecek status kesehatan server:', err);
+      });
+  }, []);
+
+  // 2. Draft Auto Save functionality
+  useEffect(() => {
+    // Save form state to local storage whenever it changes
+    const timeout = setTimeout(() => {
+      localStorage.setItem('canvas_prd_form_draft', JSON.stringify(formState));
+      setIsDraftSaved(true);
+      
+      // Clear status flag after a few seconds
+      const saveIndicatorTimeout = setTimeout(() => {
+        setIsDraftSaved(false);
+      }, 3000);
+
+      return () => clearTimeout(saveIndicatorTimeout);
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [formState]);
+
+  // Save User API Keys to Session Storage
+  useEffect(() => {
+    sessionStorage.setItem('canvas_prd_user_api_keys', JSON.stringify(userApiKeys));
+  }, [userApiKeys]);
+
+  // 3. Reset Project Draft Action
+  const handleResetProject = () => {
+    setFormState(DEFAULT_FORM_STATE);
+    setResponseData(null);
+    localStorage.removeItem('canvas_prd_form_draft');
+    localStorage.removeItem('canvas_prd_response_data');
+    setActiveTab('generator');
+    setErrorMessage('');
+  };
+
+  // 4. Generate PRD Action with simulated step-by-step progress
+  const handleGeneratePRD = async () => {
+    // Validate required fields
+    if (!formState.projectName.trim()) {
+      setErrorMessage('Nama proyek wajib diisi untuk melakukan generasi.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!formState.referenceInformation.trim() || formState.referenceInformation.length < 100) {
+      setErrorMessage('Informasi referensi wajib diisi minimal 100 karakter.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setErrorMessage('');
+    setIsGenerating(true);
+    setActiveStepIndex(0);
+
+    // Advanced progress bar animation intervals (to create an immersive analysis feel)
+    const stepsCount = 7; // total steps: 0 to 6 are visual steps, 7 is 'done'
+    const stepDuration = 800; // ms per step transition
+    let currentStep = 0;
+
+    const progressInterval = setInterval(() => {
+      if (currentStep < 5) {
+        currentStep++;
+        setActiveStepIndex(currentStep);
+      }
+    }, stepDuration);
+
+    try {
+      // Trigger API fetch
+      const res = await fetch('/api/generate-prd', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-api-keys': JSON.stringify(userApiKeys)
+        },
+        body: JSON.stringify({ form: formState, userApiKeys })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Terjadi kesalahan saat memproses PRD.');
+      }
+
+      // Finish steps simulation before showing results
+      clearInterval(progressInterval);
+      
+      // Animate through remaining steps quickly
+      const runRemainingSteps = async () => {
+        for (let s = currentStep + 1; s <= stepsCount; s++) {
+          setActiveStepIndex(s);
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+        // Save response to state and local storage
+        setResponseData(data);
+        localStorage.setItem('canvas_prd_response_data', JSON.stringify(data));
+        
+        // Transition to Output Tab
+        setActiveTab('output');
+        setIsGenerating(false);
+      };
+
+      await runRemainingSteps();
+
+    } catch (err: any) {
+      clearInterval(progressInterval);
+      setIsGenerating(false);
+      setErrorMessage(err?.message || 'Gagal menghubungi server untuk merancang PRD. Silakan coba lagi.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="flex flex-col xl:flex-row min-h-screen bg-zinc-50 transition-colors duration-200">
+      {/* Sidebar navigation */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        hasUserApiKey={userApiKeys.length > 0}
+        hasSystemApiKey={hasSystemApiKey}
+        isDraftSaved={isDraftSaved}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 h-auto xl:h-screen xl:overflow-y-auto custom-scrollbar">
+        {/* Sticky Header */}
+        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 py-4 flex items-center justify-between transition-colors duration-200">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-display font-bold text-zinc-900 capitalize">
+              {activeTab === 'generator' ? '🏠 Generator Blueprint PRD' : 
+               activeTab === 'output' ? '📄 Hasil Blueprint PRD' : 
+               activeTab === 'settings' ? '⚙ Pengaturan API & Draf' : '❓ Panduan Penggunaan'}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Quick API badge indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-[10px] font-mono font-bold">
+              <span className="text-zinc-400">Status API:</span>
+              <span className={hasSystemApiKey || userApiKeys.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                {hasSystemApiKey || userApiKeys.length > 0 ? 'Siap' : 'Belum Dikonfigurasi'}
+              </span>
+            </div>
+
+            {/* Sticky Header Action button */}
+            {activeTab === 'generator' && (
+              <button
+                onClick={handleGeneratePRD}
+                disabled={isGenerating}
+                className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                {isGenerating ? 'Memproses...' : 'Generate PRD'}
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Core content wrapper */}
+        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto space-y-6">
+          {/* Error Message banner */}
+          {errorMessage && (
+            <div className="flex items-start justify-between gap-3 bg-rose-50/70 border border-rose-100 p-4 rounded-2xl">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-rose-800 font-display">
+                    Terjadi Kesalahan
+                  </h4>
+                  <p className="text-xs text-zinc-600 leading-relaxed">
+                    {errorMessage}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setErrorMessage('')}
+                className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Active Tab rendering */}
+          {activeTab === 'generator' && (
+            <div className="space-y-6">
+              {/* Hero Banner */}
+              <div className="space-y-2 py-2">
+                <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900">
+                  Ubah Informasi Mentah Menjadi PRD Siap Gemini Canvas
+                </h1>
+                <p className="text-xs text-zinc-500 max-w-2xl leading-relaxed">
+                  Isi parameter identitas bisnis, gaya visual, dan SEO Anda, lalu masukkan teks referensi atau dokumen Word Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi yang siap dijalankan di Gemini Canvas.
+                </p>
+              </div>
+
+              <GeneratorForm
+                formState={formState}
+                setFormState={setFormState}
+                onGenerate={handleGeneratePRD}
+                isGenerating={isGenerating}
+                activeStepIndex={activeStepIndex}
+              />
+            </div>
+          )}
+
+          {activeTab === 'output' && (
+            <OutputView
+              responseData={responseData}
+              projectName={formState.projectName || 'My_Project'}
+              onRegenerate={handleGeneratePRD}
+              onEdit={() => setActiveTab('generator')}
+              onClear={() => {
+                setResponseData(null);
+                localStorage.removeItem('canvas_prd_response_data');
+              }}
+              isGenerating={isGenerating}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView
+              userApiKeys={userApiKeys}
+              setUserApiKeys={setUserApiKeys}
+              hasSystemApiKey={hasSystemApiKey}
+              onResetProject={handleResetProject}
+            />
+          )}
+
+          {activeTab === 'about' && (
+            <AboutView />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
