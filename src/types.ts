@@ -60,7 +60,47 @@ export type AIMode = 'Quick' | 'Balanced' | 'Professional' | 'Enterprise';
 
 export type ReasoningLevel = 'Basic' | 'Standard' | 'Advanced' | 'Maximum';
 
+export type GenerationMode = 'auto' | 'manual';
+
+export interface AIAnalysisResult {
+  confidence: {
+    businessAnalysis: number;
+    targetAudience: number;
+    brandStyle: number;
+    seoStrategy: number;
+  };
+  assumptions: string[];
+  quickReview: {
+    businessType: string;
+    targetAudience: string;
+    websiteGoal: string;
+    brandStyle: string;
+    cta: string;
+    seoFocus: string;
+    estimatedPages: number;
+    estimatedSections: number;
+  };
+  mappedFields: {
+    targetAudience: string[];
+    goalWebsite: string[];
+    brandStyles: string[];
+    animationLevel: AnimationLevel;
+    illustrationStyle: IllustrationStyle;
+    preferredTone: PreferredTone;
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
+    autoGenerateColors: boolean;
+    typography: TypographyOption;
+    seoPreferences: string[];
+    aiMode: AIMode;
+    creativitySlider: number;
+    reasoningLevel: ReasoningLevel;
+  };
+}
+
 export interface ProjectFormState {
+  generationMode?: GenerationMode;
   // Project Information
   projectName: string;
   websiteType: WebsiteType;
@@ -70,6 +110,7 @@ export interface ProjectFormState {
   goalWebsite: string[];
   customGoalWebsite?: string;
   projectLanguage: string;
+  logoLink?: string;
 
   // Website Information
   referenceInformation: string;

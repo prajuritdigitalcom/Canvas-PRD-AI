@@ -79,7 +79,7 @@ export default function SettingsView({
         </div>
 
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Sistem mendukung <strong>banyak API Key</strong> baik dari sisi server (Vercel) maupun dari sisi Anda sebagai pengunjung (Browser). Jika salah satu kunci mencapai batas kuota (rate limit), sistem akan otomatis mendeteksi dan beralih ke kunci berikutnya secara berputar (rotation fallback).
+          Sistem mendukung <strong>banyak API Key</strong> baik dari sisi server maupun dari sisi Anda sebagai pengunjung. Jika salah satu kunci mencapai batas kuota (rate limit), sistem akan otomatis mendeteksi dan beralih ke kunci berikutnya secara berputar (rotation fallback).
         </p>
 
         {/* Priority List */}
@@ -95,7 +95,7 @@ export default function SettingsView({
               API Keys Bawaan Server
             </h4>
             <p className="text-xs text-zinc-500">
-              Menggunakan kumpulan variabel lingkungan <code className="bg-zinc-100 px-1 py-0.5 rounded text-[11px]">GEMINI_API_KEY</code> atau kunci tambahan yang dikonfigurasi di Vercel.
+              Menggunakan kumpulan variabel lingkungan <code className="bg-zinc-100 px-1 py-0.5 rounded text-[11px]">GEMINI_API_KEY</code> atau kunci tambahan yang dikonfigurasi di server.
             </p>
           </div>
 

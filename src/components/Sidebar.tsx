@@ -106,7 +106,7 @@ export default function Sidebar({
           </span>
           
           <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-zinc-500">Server (Vercel)</span>
+            <span className="text-zinc-500">Server</span>
             <div className="flex items-center gap-1.5">
               <div className={`w-2 h-2 rounded-full ${hasSystemApiKey ? 'bg-emerald-500' : 'bg-rose-500'}`} />
               <span className={hasSystemApiKey ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
@@ -116,7 +116,7 @@ export default function Sidebar({
           </div>
 
           <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-zinc-500">Backup (Browser)</span>
+            <span className="text-zinc-500">Backup</span>
             <div className="flex items-center gap-1.5">
               <div className={`w-2 h-2 rounded-full ${hasUserApiKey ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
               <span className={hasUserApiKey ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
@@ -128,7 +128,7 @@ export default function Sidebar({
 
         {/* App Meta Info */}
         <div className="text-[10px] text-zinc-400 font-mono text-center">
-          Peta Jalan Desain • Indonesia
+          Karya Prajurit Digital
         </div>
       </div>
     </div>

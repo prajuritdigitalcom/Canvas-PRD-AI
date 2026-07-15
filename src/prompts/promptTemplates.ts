@@ -33,6 +33,7 @@ export function buildUserPrompt(form: ProjectFormState): string {
 - **Target Audience:** ${targetAudienceStr} ${form.customTargetAudience ? `(${form.customTargetAudience})` : ''}
 - **Goal Website:** ${goalWebsiteStr} ${form.customGoalWebsite ? `(${form.customGoalWebsite})` : ''}
 - **Project Language:** ${form.projectLanguage}
+- **Logo Link / URL:** ${form.logoLink || 'None provided'}
 
 ## WEBSITE BRIEF & RAW INFORMATION
 """

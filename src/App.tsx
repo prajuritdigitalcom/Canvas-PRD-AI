@@ -4,15 +4,17 @@ import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
 import AboutView from './components/AboutView';
-import { ProjectFormState, PRDGenerateResponse } from './types';
+import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
 import { Sparkles, AlertCircle, Info, X, Check, Save } from 'lucide-react';
 
 const DEFAULT_FORM_STATE: ProjectFormState = {
+  generationMode: 'auto',
   projectName: '',
   websiteType: 'Company Profile',
   targetAudience: [],
   goalWebsite: [],
   projectLanguage: 'Indonesia',
+  logoLink: '',
   referenceInformation: '',
   referenceLinks: [],
   brandStyles: [],
@@ -44,6 +46,10 @@ export default function App() {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStepIndex, setAnalysisStepIndex] = useState(0);
+
   // 1. Initial configuration and state restoration on mount
   useEffect(() => {
     // Force Light Mode
@@ -66,6 +72,16 @@ export default function App() {
         setResponseData(JSON.parse(savedResponse));
       } catch (e) {
         console.error('Gagal memulihkan data PRD sebelumnya:', e);
+      }
+    }
+
+    // Restore analysis result if exists
+    const savedAnalysis = localStorage.getItem('canvas_prd_analysis_result');
+    if (savedAnalysis) {
+      try {
+        setAnalysisResult(JSON.parse(savedAnalysis));
+      } catch (e) {
+        console.error('Gagal memulihkan hasil analisis:', e);
       }
     }
 
@@ -125,10 +141,78 @@ export default function App() {
   const handleResetProject = () => {
     setFormState(DEFAULT_FORM_STATE);
     setResponseData(null);
+    setAnalysisResult(null);
     localStorage.removeItem('canvas_prd_form_draft');
     localStorage.removeItem('canvas_prd_response_data');
+    localStorage.removeItem('canvas_prd_analysis_result');
     setActiveTab('generator');
     setErrorMessage('');
+  };
+
+  // 3.5. Analyze Brief Action (for Auto Mode)
+  const handleAnalyzeBrief = async () => {
+    if (!formState.projectName.trim()) {
+      setErrorMessage('Nama proyek wajib diisi untuk memulai analisis.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!formState.referenceInformation.trim() || formState.referenceInformation.length < 100) {
+      setErrorMessage('Informasi referensi wajib diisi minimal 100 karakter.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setErrorMessage('');
+    setIsAnalyzing(true);
+    setAnalysisStepIndex(0);
+
+    const stepsCount = 14;
+    let currentStep = 0;
+
+    const analysisInterval = setInterval(() => {
+      if (currentStep < 12) {
+        currentStep++;
+        setAnalysisStepIndex(currentStep);
+      }
+    }, 400);
+
+    try {
+      const res = await fetch('/api/analyze-brief', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-api-keys': JSON.stringify(userApiKeys)
+        },
+        body: JSON.stringify({ form: formState, userApiKeys })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Terjadi kesalahan saat menganalisis brief.');
+      }
+
+      clearInterval(analysisInterval);
+
+      const runRemaining = async () => {
+        for (let s = currentStep + 1; s < stepsCount; s++) {
+          setAnalysisStepIndex(s);
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        setAnalysisResult(data);
+        localStorage.setItem('canvas_prd_analysis_result', JSON.stringify(data));
+        setIsAnalyzing(false);
+      };
+
+      await runRemaining();
+
+    } catch (err: any) {
+      clearInterval(analysisInterval);
+      setIsAnalyzing(false);
+      setErrorMessage(err?.message || 'Gagal menghubungi server untuk menganalisis brief. Silakan coba lagi.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // 4. Generate PRD Action with simulated step-by-step progress
@@ -142,6 +226,13 @@ export default function App() {
 
     if (!formState.referenceInformation.trim() || formState.referenceInformation.length < 100) {
       setErrorMessage('Informasi referensi wajib diisi minimal 100 karakter.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Check if auto mode and analysis results are available
+    if (formState.generationMode === 'auto' && !analysisResult) {
+      setErrorMessage('Silakan jalankan "Analisis Brief Otomatis" terlebih dahulu sebelum membuat PRD.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -163,6 +254,12 @@ export default function App() {
     }, stepDuration);
 
     try {
+      // Merge AI Analysis results into the form payload if in Auto Mode
+      const finalForm = { ...formState };
+      if (formState.generationMode === 'auto' && analysisResult) {
+        Object.assign(finalForm, analysisResult.mappedFields);
+      }
+
       // Trigger API fetch
       const res = await fetch('/api/generate-prd', {
         method: 'POST',
@@ -170,7 +267,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'x-user-api-keys': JSON.stringify(userApiKeys)
         },
-        body: JSON.stringify({ form: formState, userApiKeys })
+        body: JSON.stringify({ form: finalForm, userApiKeys })
       });
 
       const data = await res.json();
@@ -282,11 +379,11 @@ export default function App() {
           {activeTab === 'generator' && (
             <div className="space-y-6">
               {/* Hero Banner */}
-              <div className="space-y-2 py-2">
-                <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900">
+              <div className="space-y-2 py-2 text-center">
+                <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900 mx-auto">
                   Ubah Informasi Mentah Menjadi PRD Siap Gemini Canvas
                 </h1>
-                <p className="text-xs text-zinc-500 max-w-2xl leading-relaxed">
+                <p className="text-xs text-zinc-500 leading-relaxed mx-auto">
                   Isi parameter identitas bisnis, gaya visual, dan SEO Anda, lalu masukkan teks referensi atau dokumen Word Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi yang siap dijalankan di Gemini Canvas.
                 </p>
               </div>
@@ -295,8 +392,14 @@ export default function App() {
                 formState={formState}
                 setFormState={setFormState}
                 onGenerate={handleGeneratePRD}
+                onReset={handleResetProject}
                 isGenerating={isGenerating}
                 activeStepIndex={activeStepIndex}
+                analysisResult={analysisResult}
+                setAnalysisResult={setAnalysisResult}
+                isAnalyzing={isAnalyzing}
+                onAnalyze={handleAnalyzeBrief}
+                analysisStepIndex={analysisStepIndex}
               />
             </div>
           )}
