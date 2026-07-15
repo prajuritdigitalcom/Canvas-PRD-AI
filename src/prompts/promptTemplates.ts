@@ -157,7 +157,7 @@ Detail semantic HTML tags, schema markup rules, heading structures, meta tags, a
 Outline optimization techniques (lazy loading, image compression, lightweight scripts).
 
 # Technical Notes for Gemini Canvas
-Provide clear, explicit instructions that Gemini Canvas needs to follow when building this site (e.g., "MUST write code in a single-file, self-contained, fully responsive pure HTML page using Tailwind CSS via CDN (<script src='https://cdn.tailwindcss.com'></script>) and vanilla JS/Alpine.js. STRICTLY FORBID React, Next.js, or .tsx/.jsx files to ensure the file can be downloaded directly as a standard, fully working '.html' file. Also, implement 'Syarat & Ketentuan' and 'Kebijakan Privasi' as functional interactive pop-up modals containing full, realistic legal texts.").
+Provide clear, explicit instructions that Gemini Canvas needs to follow when building this site. You MUST explicitly demand that Gemini Canvas outputs ONLY a single-file, self-contained, fully responsive HTML page using Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) and vanilla JS or Alpine.js. You MUST strictly forbid the use of React, Next.js, or .tsx/.jsx formats so that the code is ready to be downloaded directly as a standard, fully working '.html' file. Additionally, instruct Gemini Canvas to implement 'Syarat & Ketentuan' and 'Kebijakan Privasi' as functional interactive pop-up modals containing full, realistic Indonesian legal text rather than empty templates.
 
 # AI Recommendations (Must Have / Nice To Have / Do / Don't)
 Summarize professional suggestions grouped into:
@@ -167,7 +167,11 @@ Summarize professional suggestions grouped into:
 - Don't (Mistakes to avoid)
 
 # Final Instruction For Gemini Canvas
-A concluding, high-impact prompt that the user can copy-paste directly to Gemini Canvas to kickstart the generation. This prompt MUST explicitly instruct Gemini Canvas to write the code ONLY in a single-file, self-contained HTML page using Tailwind CSS via CDN and vanilla JavaScript, and forbid any React, Next.js, or TSX/JSX so that the downloaded file is a standard '.html' file. It MUST also command Gemini Canvas to implement "Syarat & Ketentuan" and "Kebijakan Privasi" as functional, fully written Pop-up Modals (no empty placeholders, no dead '#' hash links).
+A concluding, high-impact copy-pasteable prompt that the user can copy directly to Gemini Canvas to kickstart the generation. This prompt MUST contain the following instructions:
+1. **Output Format**: WRITE THE ENTIRE WEBSITE CODE IN A SINGLE, SELF-CONTAINED '.html' FILE ONLY. DO NOT USE React, TypeScript, Next.js, or .tsx/.jsx files. The user must be able to save this file directly as an '.html' page and open it in any browser immediately.
+2. **Frameworks & Libraries**: Use standard Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) and vanilla JavaScript (or Alpine.js) for all interactive logic.
+3. **Interactive Footer Modals**: The website's footer links for 'Syarat & Ketentuan' (Terms & Conditions) and 'Kebijakan Privasi' (Privacy Policy) MUST NOT be dead '#' hash links or go to empty separate pages. Instead, they MUST trigger beautifully styled modal popups (using plain CSS/Tailwind class-toggle via simple vanilla JS onclick handlers).
+4. **Complete Written Copy**: The modals MUST NOT be empty or use placeholder 'Lorem Ipsum' text. You MUST generate fully detailed, realistic, and grammatically correct Indonesian legal terms and privacy policies customized precisely for this business domain.
 
 Make sure the output is professional, detailed, and completely ready to be copied into Gemini Canvas!`;
 }
