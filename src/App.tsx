@@ -3,7 +3,6 @@ import Sidebar from './components/Sidebar';
 import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
-import AboutView from './components/AboutView';
 import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
 import { Sparkles, AlertCircle, Info, X, Check, Save } from 'lucide-react';
 
@@ -425,10 +424,6 @@ export default function App() {
               hasSystemApiKey={hasSystemApiKey}
               onResetProject={handleResetProject}
             />
-          )}
-
-          {activeTab === 'about' && (
-            <AboutView />
           )}
         </div>
       </main>

@@ -20,7 +20,6 @@ export default function Sidebar({
     { id: 'generator', label: 'Generator PRD', icon: Sparkles },
     { id: 'output', label: 'Hasil PRD', icon: FileText },
     { id: 'settings', label: 'Pengaturan', icon: Settings },
-    { id: 'about', label: 'Panduan', icon: HelpCircle },
   ];
 
   return (
