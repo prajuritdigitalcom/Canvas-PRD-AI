@@ -6,6 +6,7 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   hasUserApiKey: boolean;
   hasSystemApiKey: boolean;
+  systemApiKeyCount?: number;
   isDraftSaved: boolean;
 }
 
@@ -14,6 +15,7 @@ export default function Sidebar({
   setActiveTab,
   hasUserApiKey,
   hasSystemApiKey,
+  systemApiKeyCount = 0,
   isDraftSaved,
 }: SidebarProps) {
   const menuItems = [
@@ -109,7 +111,7 @@ export default function Sidebar({
             <div className="flex items-center gap-1.5">
               <div className={`w-2 h-2 rounded-full ${hasSystemApiKey ? 'bg-emerald-500' : 'bg-rose-500'}`} />
               <span className={hasSystemApiKey ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
-                {hasSystemApiKey ? 'Aktif' : 'Kosong'}
+                {hasSystemApiKey ? (systemApiKeyCount > 0 ? `Aktif (${systemApiKeyCount})` : 'Aktif') : 'Kosong'}
               </span>
             </div>
           </div>

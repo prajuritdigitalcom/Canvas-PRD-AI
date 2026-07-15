@@ -35,6 +35,7 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
 export default function App() {
   const [activeTab, setActiveTab] = useState('generator');
   const [hasSystemApiKey, setHasSystemApiKey] = useState(false);
+  const [systemApiKeyCount, setSystemApiKeyCount] = useState(0);
   const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
 
@@ -106,6 +107,9 @@ export default function App() {
       .then(data => {
         if (data.status === 'ok') {
           setHasSystemApiKey(data.hasSystemApiKey);
+          if (typeof data.systemApiKeyCount === 'number') {
+            setSystemApiKeyCount(data.systemApiKeyCount);
+          }
         }
       })
       .catch(err => {
@@ -312,6 +316,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         hasUserApiKey={userApiKeys.length > 0}
         hasSystemApiKey={hasSystemApiKey}
+        systemApiKeyCount={systemApiKeyCount}
         isDraftSaved={isDraftSaved}
       />
 
@@ -422,6 +427,7 @@ export default function App() {
               userApiKeys={userApiKeys}
               setUserApiKeys={setUserApiKeys}
               hasSystemApiKey={hasSystemApiKey}
+              systemApiKeyCount={systemApiKeyCount}
               onResetProject={handleResetProject}
             />
           )}

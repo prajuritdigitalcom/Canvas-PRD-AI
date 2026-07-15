@@ -5,6 +5,7 @@ interface SettingsViewProps {
   userApiKeys: string[];
   setUserApiKeys: (keys: string[]) => void;
   hasSystemApiKey: boolean;
+  systemApiKeyCount?: number;
   onResetProject: () => void;
 }
 
@@ -12,6 +13,7 @@ export default function SettingsView({
   userApiKeys,
   setUserApiKeys,
   hasSystemApiKey,
+  systemApiKeyCount = 0,
   onResetProject,
 }: SettingsViewProps) {
   const [newKey, setNewKey] = useState('');
@@ -88,7 +90,7 @@ export default function SettingsView({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-zinc-400 font-mono">PRIORITAS 1 (SERVER)</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasSystemApiKey ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                {hasSystemApiKey ? 'Tersedia' : 'Kosong'}
+                {hasSystemApiKey ? (systemApiKeyCount > 0 ? `${systemApiKeyCount} Kunci Aktif` : 'Tersedia') : 'Kosong'}
               </span>
             </div>
             <h4 className="text-sm font-semibold text-zinc-800">
