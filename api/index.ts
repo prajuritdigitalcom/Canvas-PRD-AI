@@ -5,6 +5,8 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { buildSystemPrompt, buildUserPrompt } from '../src/prompts/promptTemplates.js';
 
+export const maxDuration = 60; // Set Vercel serverless function timeout to 60 seconds
+
 dotenv.config();
 
 const app = express();
