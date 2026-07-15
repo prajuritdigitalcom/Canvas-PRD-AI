@@ -13,7 +13,9 @@ Strictly adhere to the following rules:
 3. For "Enterprise" mode, expand each section exhaustively. Aim for deep, comprehensive specifications with clear detail. Avoid brief summaries or shortcuts like "add details here".
 4. Output must be valid Markdown matching the requested structure.
 5. Provide actionable, high-quality requirements so that Gemini Canvas can build the perfect website from it.
-6. Under no circumstances should you output placeholder text like "Lorem Ipsum" or "to be determined". Make professional, concrete assumptions and recommendations instead.`;
+6. Under no circumstances should you output placeholder text like "Lorem Ipsum" or "to be determined". Make professional, concrete assumptions and recommendations instead.
+7. You MUST explicitly instruct Gemini Canvas to ONLY build and export a single, self-contained, fully responsive HTML page using Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) and clean vanilla JS or Alpine.js. Emphasize that React, TypeScript, Next.js, or .tsx/.jsx formats are STRICTLY PROHIBITED, so that the code can be downloaded/saved directly as a standard, fully working '.html' file.
+8. You MUST explicitly demand that "Syarat & Ketentuan" (Terms & Conditions) and "Kebijakan Privasi" (Privacy Policy) in the website footer be built as fully interactive Pop-up Modals (Vanilla JS class-toggle). When clicked, they MUST show realistic, fully written, and meaningful legal text matching the business name, rather than being empty, using '#' links, or containing blank placeholders.`;
 }
 
 export function buildUserPrompt(form: ProjectFormState): string {
@@ -128,10 +130,10 @@ Specify the icon library (Lucide Icons) and guidelines for consistent usage.
 Describe the preferred style (Flat, 3D, Photography, etc.) and guidelines for Alt Text, optimization, and fallback placeholders.
 
 # UI Components Specifications
-Provide standard specifications for cards, menus, sliders, modals, etc.
+Provide standard specifications for cards, menus, sliders, modals, etc. You MUST specify interactive Pop-up Modals for "Syarat & Ketentuan" (Terms & Conditions) and "Kebijakan Privasi" (Privacy Policy) with complete, realistic text contents appropriate for the business domain.
 
 # Page-by-Page & Section-by-Section Breakdown
-This must be incredibly thorough! List every page and describe every section in detail (Hero, Clients/Partners, About, Service List, Benefits, Portfolio, Testimonial, FAQ, CTA, Footer).
+This must be incredibly thorough! List every page and describe every section in detail (Hero, Clients/Partners, About, Service List, Benefits, Portfolio, Testimonial, FAQ, CTA, Footer). The Footer section MUST contain fully interactive "Syarat & Ketentuan" and "Kebijakan Privasi" Pop-up Modals containing actual, complete, realistic written legal texts instead of empty placeholders or dead '#' hash links.
 
 # Copywriting Guidelines
 Specify guidelines for tone of voice, heading hierarchy, persuasive copywriting, microcopy, and CTA labels. Do NOT write full body copy, but provide strict structural templates and copywriting hooks (e.g., Problem-Agitate-Solve formula).
@@ -155,7 +157,7 @@ Detail semantic HTML tags, schema markup rules, heading structures, meta tags, a
 Outline optimization techniques (lazy loading, image compression, lightweight scripts).
 
 # Technical Notes for Gemini Canvas
-Provide clear, explicit instructions that Gemini Canvas needs to follow when building this site (e.g., "Use modern CSS grid, avoid legacy floats, ensure all svgs have explicit sizes, etc.").
+Provide clear, explicit instructions that Gemini Canvas needs to follow when building this site (e.g., "MUST write code in a single-file, self-contained, fully responsive pure HTML page using Tailwind CSS via CDN (<script src='https://cdn.tailwindcss.com'></script>) and vanilla JS/Alpine.js. STRICTLY FORBID React, Next.js, or .tsx/.jsx files to ensure the file can be downloaded directly as a standard, fully working '.html' file. Also, implement 'Syarat & Ketentuan' and 'Kebijakan Privasi' as functional interactive pop-up modals containing full, realistic legal texts.").
 
 # AI Recommendations (Must Have / Nice To Have / Do / Don't)
 Summarize professional suggestions grouped into:
@@ -165,7 +167,7 @@ Summarize professional suggestions grouped into:
 - Don't (Mistakes to avoid)
 
 # Final Instruction For Gemini Canvas
-A concluding, high-impact prompt that the user can copy-paste directly to Gemini Canvas to kickstart the generation.
+A concluding, high-impact prompt that the user can copy-paste directly to Gemini Canvas to kickstart the generation. This prompt MUST explicitly instruct Gemini Canvas to write the code ONLY in a single-file, self-contained HTML page using Tailwind CSS via CDN and vanilla JavaScript, and forbid any React, Next.js, or TSX/JSX so that the downloaded file is a standard '.html' file. It MUST also command Gemini Canvas to implement "Syarat & Ketentuan" and "Kebijakan Privasi" as functional, fully written Pop-up Modals (no empty placeholders, no dead '#' hash links).
 
 Make sure the output is professional, detailed, and completely ready to be copied into Gemini Canvas!`;
 }
