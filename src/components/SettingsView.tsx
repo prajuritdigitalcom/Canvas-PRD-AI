@@ -97,7 +97,7 @@ export default function SettingsView({
               API Keys Bawaan Server
             </h4>
             <p className="text-xs text-zinc-500">
-              Menggunakan kumpulan variabel lingkungan <code className="bg-zinc-100 px-1 py-0.5 rounded text-[11px]">GEMINI_API_KEY</code> atau kunci tambahan yang dikonfigurasi di server.
+              Menggunakan kumpulan <code className="bg-zinc-100 px-1 py-0.5 rounded text-[11px]">GEMINI_API_KEY</code> beserta API Key cadangan di server.
             </p>
           </div>
 

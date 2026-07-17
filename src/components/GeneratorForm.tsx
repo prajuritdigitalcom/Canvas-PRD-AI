@@ -300,7 +300,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             <Cpu className="w-4.5 h-4.5 text-primary" /> Mode Perancangan PRD
           </h4>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xl">
-            Pilih cara merancang PRD. AI Auto merancang desain dan struktur website berdasarkan brief secara otomatis.
+            Buat PRD secara manual atau gunakan AI untuk menyusunnya secara otomatis.
           </p>
         </div>
         <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl shrink-0 self-start md:self-center">
@@ -1022,7 +1022,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                     Jalankan Analisis Brief Otomatis
                   </h4>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                    AI akan menganalisis referensi Anda untuk menyusun strategi, struktur, dan PRD website secara otomatis.
+                    AI akan menganalisis referensi dan menyusun PRD secara otomatis.
                   </p>
                 </div>
                 <button
