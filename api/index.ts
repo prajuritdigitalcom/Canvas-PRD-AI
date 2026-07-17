@@ -70,6 +70,17 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// API endpoint to verify user access password
+app.post('/api/verify-password', (req, res) => {
+  const { password } = req.body;
+  const correctPassword = process.env.PASSWORD || 'admin@prajuritdigital.com';
+  if (password === correctPassword) {
+    return res.json({ success: true });
+  } else {
+    return res.json({ success: false });
+  }
+});
+
 // API endpoint for PRD generation
 app.post('/api/generate-prd', async (req, res) => {
   console.log('\n=========================================');

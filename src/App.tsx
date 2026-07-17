@@ -4,7 +4,8 @@ import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
 import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
-import { Sparkles, AlertCircle, Info, X, Check, Save } from 'lucide-react';
+import { Sparkles, AlertCircle, Info, X, Check, Save, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_FORM_STATE: ProjectFormState = {
   generationMode: 'auto',
@@ -33,6 +34,14 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
 };
 
 export default function App() {
+  const [isUnlocked, setIsUnlocked] = useState(() => {
+    return sessionStorage.getItem('canvas_prd_unlocked') === 'true';
+  });
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const [activeTab, setActiveTab] = useState('generator');
   const [hasSystemApiKey, setHasSystemApiKey] = useState(false);
   const [systemApiKeyCount, setSystemApiKeyCount] = useState(0);
@@ -49,6 +58,40 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStepIndex, setAnalysisStepIndex] = useState(0);
+
+  const handleVerifyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) {
+      setPasswordError('Password tidak boleh kosong');
+      return;
+    }
+
+    setIsVerifyingPassword(true);
+    setPasswordError('');
+
+    try {
+      const response = await fetch('/api/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: passwordInput.trim() }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        sessionStorage.setItem('canvas_prd_unlocked', 'true');
+        setIsUnlocked(true);
+        setPasswordError('');
+      } else {
+        setPasswordError('Password salah, silakan coba lagi.');
+      }
+    } catch (err) {
+      console.error('Error verifying password:', err);
+      setPasswordError('Terjadi kesalahan koneksi server.');
+    } finally {
+      setIsVerifyingPassword(false);
+    }
+  };
 
   // 1. Initial configuration and state restoration on mount
   useEffect(() => {
@@ -309,75 +352,154 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col xl:flex-row min-h-screen bg-zinc-50 transition-colors duration-200">
-      {/* Sidebar navigation */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        hasUserApiKey={userApiKeys.length > 0}
-        hasSystemApiKey={hasSystemApiKey}
-        systemApiKeyCount={systemApiKeyCount}
-        isDraftSaved={isDraftSaved}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 h-auto xl:h-screen xl:overflow-y-auto custom-scrollbar">
-        {/* Sticky Header */}
-        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 py-4 flex items-center justify-between transition-colors duration-200">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-display font-bold text-zinc-900 capitalize">
-              {activeTab === 'generator' ? '🏠 Generator Blueprint PRD' : 
-               activeTab === 'output' ? '📄 Hasil Blueprint PRD' : 
-               activeTab === 'settings' ? '⚙ Pengaturan API & Draf' : '❓ Panduan Penggunaan'}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Quick API badge indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-[10px] font-mono font-bold">
-              <span className="text-zinc-400">Status API:</span>
-              <span className={hasSystemApiKey || userApiKeys.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                {hasSystemApiKey || userApiKeys.length > 0 ? 'Siap' : 'Belum Dikonfigurasi'}
-              </span>
+    <AnimatePresence mode="wait">
+      {!isUnlocked ? (
+        <div className="flex items-center justify-center min-h-screen bg-zinc-50 px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="bg-white border border-zinc-200/80 rounded-3xl max-w-md w-full p-8 shadow-xl text-center"
+          >
+            <div className="flex justify-center mb-6">
+              <div className="p-4 bg-rose-50 rounded-2xl text-primary">
+                <Lock className="w-8 h-8" />
+              </div>
             </div>
+            <h1 className="text-xl md:text-2xl font-display font-extrabold text-zinc-950 tracking-tight">
+              Akses Terproteksi
+            </h1>
+            <p className="text-xs text-zinc-500 leading-relaxed mt-2 mb-6">
+              Silakan masukkan password rahasia untuk membuka aplikasi Canvas PRD AI Karya Prajurit Digital.
+            </p>
 
-            {/* Sticky Header Action button */}
-            {activeTab === 'generator' && (
-              <button
-                onClick={handleGeneratePRD}
-                disabled={isGenerating}
-                className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-50"
-              >
-                {isGenerating ? 'Memproses...' : 'Generate PRD'}
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Core content wrapper */}
-        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto space-y-6">
-          {/* Error Message banner */}
-          {errorMessage && (
-            <div className="flex items-start justify-between gap-3 bg-rose-50/70 border border-rose-100 p-4 rounded-2xl">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-rose-800 font-display">
-                    Terjadi Kesalahan
-                  </h4>
-                  <p className="text-xs text-zinc-600 leading-relaxed">
-                    {errorMessage}
-                  </p>
+            <form onSubmit={handleVerifyPassword} className="space-y-4 text-left">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 font-mono uppercase tracking-wider mb-2">
+                  PASSWORD AKSES
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Masukkan password..."
+                    className="w-full px-4 py-3 bg-zinc-50/50 border border-zinc-200 focus:border-primary focus:ring-1 focus:ring-primary/25 rounded-xl text-sm transition-all outline-none font-mono"
+                    disabled={isVerifyingPassword}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors p-1 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
+
+              {passwordError && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-xs font-semibold text-rose-600 flex items-center gap-1.5"
+                >
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{passwordError}</span>
+                </motion.div>
+              )}
+
               <button
-                onClick={() => setErrorMessage('')}
-                className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
+                type="submit"
+                disabled={isVerifyingPassword}
+                className="w-full py-3 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all cursor-pointer shadow-md shadow-primary/10 flex items-center justify-center gap-2"
               >
-                <X className="w-4 h-4" />
+                {isVerifyingPassword ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Memverifikasi...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Buka Akses</span>
+                  </>
+                )}
               </button>
-            </div>
-          )}
+            </form>
+          </motion.div>
+        </div>
+      ) : (
+        <div className="flex flex-col xl:flex-row min-h-screen bg-zinc-50 transition-colors duration-200 w-full">
+          {/* Sidebar navigation */}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            hasUserApiKey={userApiKeys.length > 0}
+            hasSystemApiKey={hasSystemApiKey}
+            systemApiKeyCount={systemApiKeyCount}
+            isDraftSaved={isDraftSaved}
+          />
+
+          {/* Main Content Area */}
+          <main className="flex-1 flex flex-col min-w-0 h-auto xl:h-screen xl:overflow-y-auto custom-scrollbar">
+            {/* Sticky Header */}
+            <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 py-4 flex items-center justify-between transition-colors duration-200">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-display font-bold text-zinc-900 capitalize">
+                  {activeTab === 'generator' ? '🏠 Generator Blueprint PRD' : 
+                   activeTab === 'output' ? '📄 Hasil Blueprint PRD' : 
+                   activeTab === 'settings' ? '⚙ Pengaturan API & Draf' : '❓ Panduan Penggunaan'}
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Quick API badge indicator */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-[10px] font-mono font-bold">
+                  <span className="text-zinc-400">Status API:</span>
+                  <span className={hasSystemApiKey || userApiKeys.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                    {hasSystemApiKey || userApiKeys.length > 0 ? 'Siap' : 'Belum Dikonfigurasi'}
+                  </span>
+                </div>
+
+                {/* Sticky Header Action button */}
+                {activeTab === 'generator' && (
+                  <button
+                    onClick={handleGeneratePRD}
+                    disabled={isGenerating}
+                    className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                  >
+                    {isGenerating ? 'Memproses...' : 'Generate PRD'}
+                  </button>
+                )}
+              </div>
+            </header>
+
+            {/* Core content wrapper */}
+            <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto space-y-6">
+              {/* Error Message banner */}
+              {errorMessage && (
+                <div className="flex items-start justify-between gap-3 bg-rose-50/70 border border-rose-100 p-4 rounded-2xl">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-rose-800 font-display">
+                        Terjadi Kesalahan
+                      </h4>
+                      <p className="text-xs text-zinc-600 leading-relaxed">
+                        {errorMessage}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setErrorMessage('')}
+                    className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
           {/* Active Tab rendering */}
           {activeTab === 'generator' && (
@@ -434,5 +556,7 @@ export default function App() {
         </div>
       </main>
     </div>
+      )}
+    </AnimatePresence>
   );
 }
