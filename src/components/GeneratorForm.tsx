@@ -271,7 +271,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               Coba Dengan Contoh Brief Proyek
             </h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xl">
-              Malas mengisi form satu-persatu? Klik tombol muat contoh untuk mengisi isian dengan draf brief kedai kopi Nusantara yang kaya detail secara otomatis.
+              Klik untuk mengisi form dengan draf contoh kedai kopi Nusantara secara otomatis.
             </p>
           </div>
         </div>
@@ -300,7 +300,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             <Cpu className="w-4.5 h-4.5 text-primary" /> Mode Perancangan PRD
           </h4>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xl">
-            Pilih cara Anda ingin merancang spesifikasi website. AI Auto Mode merekomendasikan seluruh struktur dan desain visual secara cerdas berdasarkan brief Anda.
+            Pilih cara merancang PRD. AI Auto merancang desain dan struktur website berdasarkan brief secara otomatis.
           </p>
         </div>
         <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl shrink-0 self-start md:self-center">
@@ -564,7 +564,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               rows={8}
               value={formState.referenceInformation}
               onChange={e => setFormState(prev => ({ ...prev, referenceInformation: e.target.value }))}
-              placeholder="Tempel seluruh materi referensi Anda di sini. Bisa berupa salinan tulisan website lama, brosur, profile perusahaan, dokumen proposal, chat WhatsApp, FAQ mentah, dsb."
+              placeholder="Masukkan semua materi referensi Anda di sini, seperti profil perusahaan, website, brosur, proposal, atau FAQ."
               className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100 leading-relaxed font-sans"
             />
           </div>
@@ -576,7 +576,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               <h4 className="text-xs font-bold font-display">Ekstrak Teks Dari File (.txt, .md, .docx / Word)</h4>
             </div>
             <p className="text-[11px] text-zinc-500">
-              Unggah file dokumen teks (.txt, .md) atau dokumen Word (.docx) Anda. Konten teks akan diekstrak langsung di browser secara instan dan digabungkan ke kolom Reference Information di atas.
+              Unggah file .txt, .md, atau .docx untuk menambahkan isi dokumen ke Reference Information.
             </p>
             <div className="flex items-center gap-4">
               <button
@@ -1022,7 +1022,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                     Jalankan Analisis Brief Otomatis
                   </h4>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                    AI akan membedah referensi & profil perusahaan Anda melalui 15 tahapan analisis komprehensif, menentukan target pasar, tema visual, estimasi halaman, strategi CTA, hingga SEO secara cerdas.
+                    AI akan menganalisis referensi Anda untuk menyusun strategi, struktur, dan PRD website secara otomatis.
                   </p>
                 </div>
                 <button

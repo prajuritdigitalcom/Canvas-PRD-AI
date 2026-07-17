@@ -507,10 +507,10 @@ export default function App() {
               {/* Hero Banner */}
               <div className="space-y-2 py-2 text-center">
                 <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900 mx-auto">
-                  Ubah Informasi Mentah Menjadi PRD Siap Gemini Canvas
+                  Ubah Brief Mentah Menjadi PRD Gemini Canvas
                 </h1>
-                <p className="text-xs text-zinc-500 leading-relaxed mx-auto">
-                  Isi parameter identitas bisnis, gaya visual, dan SEO Anda, lalu masukkan teks referensi atau dokumen Word Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi yang siap dijalankan di Gemini Canvas.
+                <p className="text-xs text-zinc-500 leading-relaxed mx-auto max-w-xl">
+                  Isi parameter dan dokumen referensi Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi secara instan.
                 </p>
               </div>
 

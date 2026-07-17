@@ -81,7 +81,7 @@ export default function SettingsView({
         </div>
 
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Sistem mendukung <strong>banyak API Key</strong> baik dari sisi server maupun dari sisi Anda sebagai pengunjung. Jika salah satu kunci mencapai batas kuota (rate limit), sistem akan otomatis mendeteksi dan beralih ke kunci berikutnya secara berputar (rotation fallback).
+          Sistem mendukung banyak API Key dan otomatis beralih ke kunci lain saat kuota habis atau terkena rate limit.
         </p>
 
         {/* Priority List */}
@@ -196,7 +196,7 @@ export default function SettingsView({
               Keamanan Terjamin (Privacy Policy)
             </h4>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
-              API Key Anda disimpan <strong>hanya di Session Storage browser Anda sendiri</strong>. Kami tidak pernah menyimpannya di database server ataupun log eksternal. Kunci cadangan ini hanya dikirimkan sementara saat melakukan generasi PRD, dan akan terhapus total ketika Anda menutup tab atau browser ini.
+              API Key hanya disimpan sementara di browser Anda dan otomatis terhapus saat tab atau browser ditutup.
             </p>
           </div>
         </div>
@@ -212,7 +212,7 @@ export default function SettingsView({
         </div>
 
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Saat Anda membuat perubahan di form Generator, data secara otomatis disimpan sebagai draf di Local Storage browser. Jika Anda ingin merancang website baru dari awal dan mengosongkan semua field masukan, gunakan tombol di bawah ini.
+          Perubahan pada form otomatis disimpan sebagai draf di browser. Gunakan tombol di bawah untuk mengosongkan semua field dan memulai proyek baru.
         </p>
 
         {showConfirmReset ? (
