@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult } from '../types';
+import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult, DesignMode } from '../types';
+import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
-  Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight
+  Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight,
+  AlignLeft, ShieldCheck, ChevronDown
 } from 'lucide-react';
 
 interface GeneratorFormProps {
@@ -45,16 +47,37 @@ const BRAND_STYLES = [
   'Glassmorphism', 'Neumorphism', 'Material Design', 'Custom'
 ];
 
-const SEO_PREFERENCES = [
-  'Semantic HTML', 'Schema Ready', 'Fast Loading', 'Local SEO', 'SEO Friendly URL', 
-  'Heading Structure', 'Internal CTA', 'External CTA', 'Meta Title', 'Meta Description', 
-  'OG Tags', 'Accessibility', 'Structured Content', 'Image Alt Text', 'Breadcrumb Ready'
-];
-
 const ANIMATION_LEVELS: AnimationLevel[] = ['None', 'Minimal', 'Medium', 'Premium', 'Luxury', 'WOW'];
 const ILLUSTRATION_STYLES: IllustrationStyle[] = ['Flat', '3D', 'Photography', 'AI Generated', 'Icons Only', 'Corporate', 'Minimal'];
 const PREFERRED_TONES: PreferredTone[] = ['Professional', 'Friendly', 'Premium', 'Luxury', 'Corporate', 'Casual', 'Creative', 'Persuasive'];
-const TYPOGRAPHY_OPTIONS: TypographyOption[] = ['Inter', 'Poppins', 'DM Sans', 'Plus Jakarta Sans', 'Roboto', 'Manrope', 'Auto'];
+
+interface TypographyPairing {
+  id: string;
+  label: string;
+  heading: TypographyOption;
+  body: TypographyOption;
+  bestFor: string;
+}
+
+const TYPOGRAPHY_PAIRINGS: TypographyPairing[] = [
+  { id: 'modern-clean', label: 'Modern & Clean', heading: 'Inter', body: 'Inter', bestFor: 'Modern, Minimalist, Corporate, SaaS' },
+  { id: 'startup-bold', label: 'Startup Bold', heading: 'Sora', body: 'Inter', bestFor: 'Startup, Technology' },
+  { id: 'elegant-serif', label: 'Elegant Serif', heading: 'Playfair Display', body: 'DM Sans', bestFor: 'Elegant, Luxury' },
+  { id: 'luxury-refined', label: 'Luxury Refined', heading: 'Cormorant Garamond', body: 'Poppins', bestFor: 'Luxury, Editorial' },
+  { id: 'creative-display', label: 'Creative Display', heading: 'Unbounded', body: 'Manrope', bestFor: 'Creative, Bold Branding' },
+  { id: 'tech-saas', label: 'Tech / SaaS', heading: 'Space Grotesk', body: 'Inter', bestFor: 'Technology, Apple Style, Stripe Style' },
+  { id: 'developer', label: 'Developer / Technical', heading: 'JetBrains Mono', body: 'Work Sans', bestFor: 'Technology (dev tools / API product)' },
+  { id: 'warm-friendly', label: 'Warm & Friendly', heading: 'Poppins', body: 'DM Sans', bestFor: 'Friendly, Professional, UMKM' },
+  { id: 'playful-round', label: 'Playful & Round', heading: 'Quicksand', body: 'Nunito', bestFor: 'Casual, Community, Kids' },
+  { id: 'editorial-serif', label: 'Editorial Serif', heading: 'Fraunces', body: 'Lora', bestFor: 'Blog, Portfolio, Personal Branding' },
+  { id: 'auto', label: 'Auto (AI yang tentukan)', heading: 'Auto', body: 'Auto', bestFor: 'Biarkan AI memilih sesuai brand style & mood' }
+];
+
+const DESIGN_MODES: { id: DesignMode; emoji: string; label: string; description: string }[] = [
+  { id: 'freeform', emoji: '🔓', label: 'Freeform Total', description: 'AI bebas merancang semuanya dari nol, seperti biasa.' },
+  { id: 'guided-tokens', emoji: '🎯', label: 'Guided Tokens', description: 'Hanya angka tipografi & warna dikunci supaya konsisten, sisanya tetap bebas AI.' },
+  { id: 'guided-full', emoji: '🔒', label: 'Guided Full', description: 'Sistem desain lengkap dikunci untuk hasil paling terprediksi (cocok untuk brief klien).' },
+];
 
 const ANALYSIS_STEPS = [
   'Membaca seluruh referensi',
@@ -91,6 +114,19 @@ export default function GeneratorForm({
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
+  const fontDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(event.target as Node)) {
+        setIsFontDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleEditAnalysis = () => {
     if (analysisResult) {
       setFormState(prev => ({
@@ -99,6 +135,7 @@ export default function GeneratorForm({
         targetAudience: prev.targetAudience.length > 0 ? prev.targetAudience : analysisResult.mappedFields.targetAudience,
         goalWebsite: prev.goalWebsite.length > 0 ? prev.goalWebsite : analysisResult.mappedFields.goalWebsite,
         brandStyles: prev.brandStyles.length > 0 ? prev.brandStyles : analysisResult.mappedFields.brandStyles,
+        designMoodId: prev.designMoodId !== 'auto' ? prev.designMoodId : analysisResult.mappedFields.designMoodId,
         animationLevel: prev.animationLevel !== 'Medium' ? prev.animationLevel : analysisResult.mappedFields.animationLevel,
         illustrationStyle: prev.illustrationStyle !== 'Icons Only' ? prev.illustrationStyle : analysisResult.mappedFields.illustrationStyle,
         preferredTone: prev.preferredTone !== 'Professional' ? prev.preferredTone : analysisResult.mappedFields.preferredTone,
@@ -106,8 +143,10 @@ export default function GeneratorForm({
         secondaryColor: prev.secondaryColor !== '#0f172a' ? prev.secondaryColor : analysisResult.mappedFields.secondaryColor,
         accentColor: prev.accentColor !== '#f59e0b' ? prev.accentColor : analysisResult.mappedFields.accentColor,
         autoGenerateColors: prev.autoGenerateColors !== true ? prev.autoGenerateColors : analysisResult.mappedFields.autoGenerateColors,
-        typography: prev.typography !== 'Inter' ? prev.typography : analysisResult.mappedFields.typography,
-        seoPreferences: prev.seoPreferences.length > 0 ? prev.seoPreferences : analysisResult.mappedFields.seoPreferences,
+        headingFont: prev.headingFont !== 'Inter' ? prev.headingFont : analysisResult.mappedFields.headingFont,
+        bodyFont: prev.bodyFont !== 'Inter' ? prev.bodyFont : analysisResult.mappedFields.bodyFont,
+        metaTitle: prev.metaTitle.trim() !== '' ? prev.metaTitle : analysisResult.mappedFields.metaTitle,
+        metaDescription: prev.metaDescription.trim() !== '' ? prev.metaDescription : analysisResult.mappedFields.metaDescription,
         aiMode: prev.aiMode !== 'Professional' ? prev.aiMode : analysisResult.mappedFields.aiMode,
         creativitySlider: prev.creativitySlider !== 60 ? prev.creativitySlider : analysisResult.mappedFields.creativitySlider,
         reasoningLevel: prev.reasoningLevel !== 'Advanced' ? prev.reasoningLevel : analysisResult.mappedFields.reasoningLevel
@@ -139,6 +178,9 @@ Layanan Utama kami:
 Alamat kami di Jl. Senopati No. 45, Jakarta Selatan. Kontak WA: 0812-3456-7890. Buka setiap hari jam 08.00 - 22.00.
 Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hangat (warm coffee vibes), ada galeri foto produk, daftar harga menu, form pemesanan coworking, FAQ lengkap, dan tombol kontak langsung ke WhatsApp admin.`,
       referenceLinks: ['https://instagram.com/kopinusantara_demo', 'https://kopinusantara-old.com'],
+      designMode: 'guided-tokens',
+      designMoodId: 'auto',
+      designDensity: 'auto',
       brandStyles: ['Creative', 'Friendly', 'Professional', 'Minimalist'],
       animationLevel: 'Premium',
       illustrationStyle: 'Photography',
@@ -147,8 +189,11 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
       secondaryColor: '#1d2a1c', // Forest Dark Green
       accentColor: '#f7f4eb', // Cream Warm White
       autoGenerateColors: false,
-      typography: 'Poppins',
-      seoPreferences: ['Semantic HTML', 'Local SEO', 'Heading Structure', 'Internal CTA', 'Meta Title', 'Meta Description', 'Accessibility'],
+      headingFont: 'Poppins',
+      bodyFont: 'DM Sans',
+      metaTitle: 'Kopi Nusantara Café — Kedai Kopi Single-Origin & Coworking Space Jakarta Selatan',
+      metaDescription: 'Nikmati kopi single-origin asli Indonesia (Gayo, Toraja, Kintamani) di Kopi Nusantara. Tersedia coworking space, meeting room, dan katering untuk event Anda.',
+      gscVerificationTag: '',
       aiMode: 'Professional',
       creativitySlider: 70,
       reasoningLevel: 'Standard',
@@ -157,7 +202,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
   };
 
   // Handle multi-select inputs (Target Audience, Goal Website, Brand Style)
-  const toggleArrayItem = (field: 'targetAudience' | 'goalWebsite' | 'brandStyles' | 'seoPreferences', item: string) => {
+  const toggleArrayItem = (field: 'targetAudience' | 'goalWebsite' | 'brandStyles', item: string) => {
     setFormState(prev => {
       const arr = prev[field];
       if (arr.includes(item)) {
@@ -260,107 +305,120 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Load Demo Banner */}
-      <div className="bg-rose-50/40 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-950/30 rounded-3xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="p-2 bg-rose-50 dark:bg-rose-950/20 text-primary rounded-xl shrink-0">
-            <Lightbulb className="w-5 h-5 animate-bounce" />
+      {/* 2-Column Section: Demo Brief & Mode Perancangan PRD */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Card 1: Load Demo Brief */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2 bg-rose-50 dark:bg-rose-950/20 text-primary rounded-xl shrink-0">
+              <Lightbulb className="w-5 h-5 animate-bounce" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-display font-bold text-zinc-900 dark:text-white">
+                Coba Dengan Contoh Brief Proyek
+              </h4>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                Klik untuk mengisi form dengan draf contoh kedai kopi Nusantara secara otomatis.
+              </p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-display font-bold text-zinc-900 dark:text-white">
-              Coba Dengan Contoh Brief Proyek
-            </h4>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xl">
-              Klik untuk mengisi form dengan draf contoh kedai kopi Nusantara secara otomatis.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <button
-            onClick={handleLoadDemo}
-            className="px-4 py-2 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:text-primary dark:hover:text-primary font-bold text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer hover:border-rose-100 dark:hover:border-rose-900/40 transition-all shrink-0"
-          >
-            Load Sample Brief
-          </button>
-          {(formState.projectName.trim() !== '' || formState.referenceInformation.trim() !== '' || (formState.logoLink && formState.logoLink.trim() !== '')) && (
+          <div className="flex flex-wrap gap-2 shrink-0 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 sm:border-0 sm:pt-0 sm:justify-end">
             <button
-              onClick={onReset}
-              className="px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl border border-rose-100 dark:border-rose-900/40 shadow-sm cursor-pointer transition-all shrink-0"
+              type="button"
+              onClick={handleLoadDemo}
+              className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:text-primary dark:hover:text-primary font-bold text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm cursor-pointer hover:border-rose-200 dark:hover:border-rose-900/40 transition-all shrink-0"
             >
-              Reset Form
+              Contoh Brief
             </button>
-          )}
+            {(formState.projectName.trim() !== '' || formState.referenceInformation.trim() !== '' || (formState.logoLink && formState.logoLink.trim() !== '')) && (
+              <button
+                type="button"
+                onClick={onReset}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl border border-rose-100 dark:border-rose-900/40 shadow-sm cursor-pointer transition-all shrink-0"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Generation Mode Selector */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
-        <div className="space-y-1">
-          <h4 className="text-sm font-display font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
-            <Cpu className="w-4.5 h-4.5 text-primary" /> Mode Perancangan PRD
-          </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xl">
-            Buat PRD secara manual atau gunakan AI untuk menyusunnya secara otomatis.
-          </p>
-        </div>
-        <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl shrink-0 self-start md:self-center">
-          <button
-            type="button"
-            onClick={() => setFormState(prev => ({ ...prev, generationMode: 'auto' }))}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              formState.generationMode === 'auto' || !formState.generationMode
-                ? 'bg-white dark:bg-zinc-900 text-primary shadow-sm border border-zinc-200/40 dark:border-zinc-800'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            AI Auto Mode
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (analysisResult) {
-                setFormState(prev => ({
-                  ...prev,
-                  generationMode: 'manual',
-                  targetAudience: prev.targetAudience.length > 0 ? prev.targetAudience : analysisResult.mappedFields.targetAudience,
-                  goalWebsite: prev.goalWebsite.length > 0 ? prev.goalWebsite : analysisResult.mappedFields.goalWebsite,
-                  brandStyles: prev.brandStyles.length > 0 ? prev.brandStyles : analysisResult.mappedFields.brandStyles,
-                  animationLevel: prev.animationLevel !== 'Medium' ? prev.animationLevel : analysisResult.mappedFields.animationLevel,
-                  illustrationStyle: prev.illustrationStyle !== 'Icons Only' ? prev.illustrationStyle : analysisResult.mappedFields.illustrationStyle,
-                  preferredTone: prev.preferredTone !== 'Professional' ? prev.preferredTone : analysisResult.mappedFields.preferredTone,
-                  primaryColor: prev.primaryColor !== '#fe4c6f' ? prev.primaryColor : analysisResult.mappedFields.primaryColor,
-                  secondaryColor: prev.secondaryColor !== '#0f172a' ? prev.secondaryColor : analysisResult.mappedFields.secondaryColor,
-                  accentColor: prev.accentColor !== '#f59e0b' ? prev.accentColor : analysisResult.mappedFields.accentColor,
-                  autoGenerateColors: prev.autoGenerateColors !== true ? prev.autoGenerateColors : analysisResult.mappedFields.autoGenerateColors,
-                  typography: prev.typography !== 'Inter' ? prev.typography : analysisResult.mappedFields.typography,
-                  seoPreferences: prev.seoPreferences.length > 0 ? prev.seoPreferences : analysisResult.mappedFields.seoPreferences,
-                  aiMode: prev.aiMode !== 'Professional' ? prev.aiMode : analysisResult.mappedFields.aiMode,
-                  creativitySlider: prev.creativitySlider !== 60 ? prev.creativitySlider : analysisResult.mappedFields.creativitySlider,
-                  reasoningLevel: prev.reasoningLevel !== 'Advanced' ? prev.reasoningLevel : analysisResult.mappedFields.reasoningLevel
-                }));
-              } else {
-                setFormState(prev => ({ ...prev, generationMode: 'manual' }));
-              }
-            }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              formState.generationMode === 'manual'
-                ? 'bg-white dark:bg-zinc-900 text-primary shadow-sm border border-zinc-200/40 dark:border-zinc-800'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Manual Mode
-          </button>
+        {/* Card 2: Mode Perancangan PRD */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2 bg-rose-50 dark:bg-rose-950/20 text-primary rounded-xl shrink-0">
+              <Cpu className="w-5 h-5 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-display font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                Mode Perancangan PRD
+              </h4>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                Buat PRD secara manual atau gunakan AI untuk menyusunnya secara otomatis.
+              </p>
+            </div>
+          </div>
+          <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl shrink-0 self-start sm:self-end pt-1">
+            <button
+              type="button"
+              onClick={() => setFormState(prev => ({ ...prev, generationMode: 'auto' }))}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                formState.generationMode === 'auto' || !formState.generationMode
+                  ? 'bg-white dark:bg-zinc-900 text-primary shadow-sm border border-zinc-200/40 dark:border-zinc-800'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              AI Auto Mode
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (analysisResult) {
+                  setFormState(prev => ({
+                    ...prev,
+                    generationMode: 'manual',
+                    targetAudience: prev.targetAudience.length > 0 ? prev.targetAudience : analysisResult.mappedFields.targetAudience,
+                    goalWebsite: prev.goalWebsite.length > 0 ? prev.goalWebsite : analysisResult.mappedFields.goalWebsite,
+                    brandStyles: prev.brandStyles.length > 0 ? prev.brandStyles : analysisResult.mappedFields.brandStyles,
+                    designMoodId: prev.designMoodId !== 'auto' ? prev.designMoodId : analysisResult.mappedFields.designMoodId,
+                    animationLevel: prev.animationLevel !== 'Medium' ? prev.animationLevel : analysisResult.mappedFields.animationLevel,
+                    illustrationStyle: prev.illustrationStyle !== 'Icons Only' ? prev.illustrationStyle : analysisResult.mappedFields.illustrationStyle,
+                    preferredTone: prev.preferredTone !== 'Professional' ? prev.preferredTone : analysisResult.mappedFields.preferredTone,
+                    primaryColor: prev.primaryColor !== '#fe4c6f' ? prev.primaryColor : analysisResult.mappedFields.primaryColor,
+                    secondaryColor: prev.secondaryColor !== '#0f172a' ? prev.secondaryColor : analysisResult.mappedFields.secondaryColor,
+                    accentColor: prev.accentColor !== '#f59e0b' ? prev.accentColor : analysisResult.mappedFields.accentColor,
+                    autoGenerateColors: prev.autoGenerateColors !== true ? prev.autoGenerateColors : analysisResult.mappedFields.autoGenerateColors,
+                    headingFont: prev.headingFont !== 'Inter' ? prev.headingFont : analysisResult.mappedFields.headingFont,
+                    bodyFont: prev.bodyFont !== 'Inter' ? prev.bodyFont : analysisResult.mappedFields.bodyFont,
+                    metaTitle: prev.metaTitle.trim() !== '' ? prev.metaTitle : analysisResult.mappedFields.metaTitle,
+                    metaDescription: prev.metaDescription.trim() !== '' ? prev.metaDescription : analysisResult.mappedFields.metaDescription,
+                    aiMode: prev.aiMode !== 'Professional' ? prev.aiMode : analysisResult.mappedFields.aiMode,
+                    creativitySlider: prev.creativitySlider !== 60 ? prev.creativitySlider : analysisResult.mappedFields.creativitySlider,
+                    reasoningLevel: prev.reasoningLevel !== 'Advanced' ? prev.reasoningLevel : analysisResult.mappedFields.reasoningLevel
+                  }));
+                } else {
+                  setFormState(prev => ({ ...prev, generationMode: 'manual' }));
+                }
+              }}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                formState.generationMode === 'manual'
+                  ? 'bg-white dark:bg-zinc-900 text-primary shadow-sm border border-zinc-200/40 dark:border-zinc-800'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              Manual Mode
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Form Container */}
       <div className="space-y-6">
-        {/* Card 1: Project Information */}
+        {/* Card 1: Informasi Proyek */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <Globe className="w-5 h-5 text-primary" />
             <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-              1. Project Information
+              1. Informasi Proyek
             </h3>
           </div>
 
@@ -368,7 +426,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             {/* Project Name */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                Project Name <span className="text-primary">*</span>
+                Nama Proyek <span className="text-primary">*</span>
               </label>
               <input
                 type="text"
@@ -383,7 +441,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             {/* Website Type */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                Website Type <span className="text-primary">*</span>
+                Tipe Website <span className="text-primary">*</span>
               </label>
               <select
                 value={formState.websiteType}
@@ -415,7 +473,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             {/* Project Language */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                Project Language
+                Pilihan Bahasa
               </label>
               <select
                 value={formState.projectLanguage}
@@ -466,13 +524,13 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
           </div>
 
           {formState.generationMode === 'manual' && (
-            <>
-              {/* Target Audience (Badges Selection) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              {/* Target Audiens (Checklist) */}
               <div className="space-y-3">
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                  Target Audience
+                  Target Audiens
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
                   {TARGET_AUDIENCES.map((audience) => {
                     const isSelected = formState.targetAudience.includes(audience);
                     return (
@@ -480,13 +538,20 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                         key={audience}
                         type="button"
                         onClick={() => toggleArrayItem('targetAudience', audience)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
+                        className={`flex items-center gap-2 p-2 rounded-xl text-xs text-left font-medium cursor-pointer transition-all border ${
                           isSelected
-                            ? 'bg-rose-50 dark:bg-rose-950/20 text-primary border-primary'
-                            : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                            ? 'bg-rose-50/80 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-primary font-bold shadow-2xs'
+                            : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-900/40'
                         }`}
                       >
-                        {audience}
+                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                          isSelected
+                            ? 'bg-primary border-primary text-white'
+                            : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                        <span className="truncate">{audience}</span>
                       </button>
                     );
                   })}
@@ -502,12 +567,12 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                 )}
               </div>
 
-              {/* Goal Website (Badges Selection) */}
+              {/* Goal Website (Checklist) */}
               <div className="space-y-3">
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
                   Goal Website
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
                   {GOAL_WEBSITES.map((goal) => {
                     const isSelected = formState.goalWebsite.includes(goal);
                     return (
@@ -515,13 +580,20 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                         key={goal}
                         type="button"
                         onClick={() => toggleArrayItem('goalWebsite', goal)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
+                        className={`flex items-center gap-2 p-2 rounded-xl text-xs text-left font-medium cursor-pointer transition-all border ${
                           isSelected
-                            ? 'bg-rose-50 dark:bg-rose-950/20 text-primary border-primary'
-                            : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                            ? 'bg-rose-50/80 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-primary font-bold shadow-2xs'
+                            : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-900/40'
                         }`}
                       >
-                        {goal}
+                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                          isSelected
+                            ? 'bg-primary border-primary text-white'
+                            : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                        <span className="truncate">{goal}</span>
                       </button>
                     );
                   })}
@@ -536,7 +608,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                   />
                 )}
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -545,7 +617,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
           <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <FileText className="w-5 h-5 text-primary" />
             <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-              2. Website Information & References
+              2. Referensi dan Informasi Website
             </h3>
           </div>
 
@@ -553,7 +625,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                Reference Information <span className="text-primary">*</span> (Min 100 Karakter)
+                Data Acuan <span className="text-primary">*</span> (Min 100 Karakter)
               </label>
               <span className={`text-[10px] font-mono font-bold ${formState.referenceInformation.length >= 100 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {formState.referenceInformation.length} Karakter
@@ -576,7 +648,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               <h4 className="text-xs font-bold font-display">Ekstrak Teks Dari File (.txt, .md, .docx / Word)</h4>
             </div>
             <p className="text-[11px] text-zinc-500">
-              Unggah file .txt, .md, atau .docx untuk menambahkan isi dokumen ke Reference Information.
+              Unggah file .txt, .md, atau .docx untuk menambahkan isi dokumen ke Data Acuan.
             </p>
             <div className="flex items-center gap-4">
               <button
@@ -600,7 +672,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
           {/* Reference Links (Dynamic inputs) */}
           <div className="space-y-3">
             <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-              Reference Links / Website Pesaing
+              Website Kompetitor / Acuan
             </label>
             
             {formState.referenceLinks.length > 0 && (
@@ -646,14 +718,132 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <Eye className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-                  3. Design Preferences
+                  3. Desain Website
                 </h3>
               </div>
+
+              {/* Design Mode Toggle — 3 pilihan setara */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                  Design Mode
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {DESIGN_MODES.map((mode) => {
+                    const isSelected = formState.designMode === mode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setFormState(prev => ({ ...prev, designMode: mode.id }))}
+                        className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
+                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span>{mode.emoji}</span>
+                          <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>
+                            {mode.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{mode.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Design Mood Selector — muncul jika mode bukan Freeform */}
+              {formState.designMode !== 'freeform' && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Design Mood
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormState(prev => ({ ...prev, designMoodId: 'auto' }))}
+                      className={`text-left p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        formState.designMoodId === 'auto'
+                          ? 'bg-rose-50 dark:bg-rose-950/20 border-primary text-primary'
+                          : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
+                      }`}
+                    >
+                      ✨ Auto (AI Rekomendasi berdasarkan Website Type / Brief)
+                    </button>
+                    {DESIGN_MOODS.map((mood) => {
+                      const isSelected = formState.designMoodId === mood.id;
+                      const swatch = mood.rules.colorContrastPairs[0]?.backgroundToken;
+                      return (
+                        <button
+                          key={mood.id}
+                          type="button"
+                          onClick={() => setFormState(prev => ({ ...prev, designMoodId: mood.id }))}
+                          className={`text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${
+                            isSelected
+                              ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
+                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                          }`}
+                        >
+                          {swatch && (
+                            <span className="w-4 h-4 rounded-full border border-zinc-300 shrink-0" style={{ backgroundColor: swatch }} />
+                          )}
+                          <span>
+                            <span className={`block text-xs font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>{mood.name}</span>
+                            <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">{mood.tagline}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Density Selector — muncul hanya di mode Guided Full */}
+              {formState.designMode === 'guided-full' && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Density
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormState(prev => ({ ...prev, designDensity: 'auto' }))}
+                      className={`text-center p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        formState.designDensity === 'auto'
+                          ? 'bg-rose-50 dark:bg-rose-950/20 border-primary text-primary'
+                          : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
+                      }`}
+                    >
+                      ✨ Auto
+                    </button>
+                    {DESIGN_DENSITIES.map((density) => {
+                      const isSelected = formState.designDensity === density.id;
+                      return (
+                        <button
+                          key={density.id}
+                          type="button"
+                          onClick={() => setFormState(prev => ({ ...prev, designDensity: density.id }))}
+                          className={`text-center p-3 rounded-xl border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
+                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <span className={`block text-xs font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>{density.name}</span>
+                          <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">{density.tagline}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Brand Style Badges Selection */}
               <div className="space-y-3">
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                  Brand Style Preferences
+                  Brand Style Preferences (Penekanan Tambahan, opsional)
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {BRAND_STYLES.map((style) => {
@@ -737,111 +927,204 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
             </div>
 
             {/* Card 4: Colors & Typography */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-6">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <Palette className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-                  4. Colors & Typography
+                  4. Warna & Tipografi
                 </h3>
               </div>
 
-              {/* Color pickers */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Primary Color
-                  </label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="color"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.primaryColor}
-                      onChange={e => setFormState(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      className="w-10 h-10 border border-zinc-200 rounded-xl cursor-pointer shrink-0"
-                    />
-                    <input
-                      type="text"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.primaryColor}
-                      onChange={e => setFormState(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono uppercase focus:outline-none"
-                    />
+              {/* 2 Main Columns: Equal Width & Equal Height */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch pt-1">
+                {/* Column 1: Color Pickers */}
+                <div className="p-5 bg-zinc-50/60 dark:bg-zinc-950/40 border border-zinc-100 dark:border-zinc-800/80 rounded-2xl flex flex-col justify-between space-y-4 h-full">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                        Skema Warna Website
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono">3 Warna Utama</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Primary Color */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                          Primary Color
+                        </label>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="color"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.primaryColor}
+                            onChange={e => setFormState(prev => ({ ...prev, primaryColor: e.target.value }))}
+                            className="w-9 h-9 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer shrink-0 disabled:opacity-50"
+                          />
+                          <input
+                            type="text"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.primaryColor}
+                            onChange={e => setFormState(prev => ({ ...prev, primaryColor: e.target.value }))}
+                            className="w-full px-2 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[11px] font-mono uppercase focus:outline-none disabled:opacity-50 text-zinc-800 dark:text-zinc-100"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Secondary Color */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                          Secondary Color
+                        </label>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="color"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.secondaryColor}
+                            onChange={e => setFormState(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                            className="w-9 h-9 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer shrink-0 disabled:opacity-50"
+                          />
+                          <input
+                            type="text"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.secondaryColor}
+                            onChange={e => setFormState(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                            className="w-full px-2 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[11px] font-mono uppercase focus:outline-none disabled:opacity-50 text-zinc-800 dark:text-zinc-100"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Accent Color */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                          Accent Color
+                        </label>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="color"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.accentColor}
+                            onChange={e => setFormState(prev => ({ ...prev, accentColor: e.target.value }))}
+                            className="w-9 h-9 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer shrink-0 disabled:opacity-50"
+                          />
+                          <input
+                            type="text"
+                            disabled={formState.autoGenerateColors}
+                            value={formState.accentColor}
+                            onChange={e => setFormState(prev => ({ ...prev, accentColor: e.target.value }))}
+                            className="w-full px-2 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[11px] font-mono uppercase focus:outline-none disabled:opacity-50 text-zinc-800 dark:text-zinc-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Auto Generate Checkbox */}
+                  <label className="flex items-center gap-2 pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={formState.autoGenerateColors}
+                      onChange={e => setFormState(prev => ({ ...prev, autoGenerateColors: e.target.checked }))}
+                      className="rounded text-primary focus:ring-rose-500 w-3.5 h-3.5 border-zinc-300 dark:border-zinc-800"
+                    />
+                    <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
+                      Auto Generate Palette (AI bebas tentukan kombinasi warna)
+                    </span>
+                  </label>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Secondary Color
-                  </label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="color"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.secondaryColor}
-                      onChange={e => setFormState(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                      className="w-10 h-10 border border-zinc-200 rounded-xl cursor-pointer shrink-0"
-                    />
-                    <input
-                      type="text"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.secondaryColor}
-                      onChange={e => setFormState(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono uppercase focus:outline-none"
-                    />
+                {/* Column 2: Typography Font (Dropdown Checklist) */}
+                <div className="p-5 bg-zinc-50/60 dark:bg-zinc-950/40 border border-zinc-100 dark:border-zinc-800/80 rounded-2xl flex flex-col justify-between h-full relative">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                    <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                      Typography Font
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">1 Checklist Pilihan</span>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Accent Color
-                  </label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="color"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.accentColor}
-                      onChange={e => setFormState(prev => ({ ...prev, accentColor: e.target.value }))}
-                      className="w-10 h-10 border border-zinc-200 rounded-xl cursor-pointer shrink-0"
-                    />
-                    <input
-                      type="text"
-                      disabled={formState.autoGenerateColors}
-                      value={formState.accentColor}
-                      onChange={e => setFormState(prev => ({ ...prev, accentColor: e.target.value }))}
-                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono uppercase focus:outline-none"
-                    />
+                  {/* Single-Select Dropdown Checklist Selector Centered Vertically */}
+                  <div className="flex-1 flex items-center justify-center my-auto py-4">
+                    <div className="relative w-full" ref={fontDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsFontDropdownOpen(!isFontDropdownOpen)}
+                        className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-left flex items-center justify-between shadow-xs hover:border-primary focus:outline-none focus:ring-2 focus:ring-rose-500/15 transition-all"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-5 h-5 rounded-md bg-rose-500 text-white flex items-center justify-center shrink-0">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                          <div className="truncate min-w-0">
+                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-100 truncate">
+                              {TYPOGRAPHY_PAIRINGS.find(p => p.heading === formState.headingFont && p.body === formState.bodyFont)?.label || 'Custom Pairing'}
+                              <span className="ml-2 font-normal text-zinc-500 dark:text-zinc-400 text-[11px]">
+                                ({formState.headingFont} / {formState.bodyFont})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ml-2 ${isFontDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {/* Dropdown Checklist Popup */}
+                      {isFontDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-2 z-50 max-h-72 overflow-y-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-2 space-y-1 divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                          {TYPOGRAPHY_PAIRINGS.map((pairing) => {
+                            const isSelected = pairing.heading === formState.headingFont && pairing.body === formState.bodyFont;
+                            return (
+                              <div
+                                key={pairing.id}
+                                onClick={() => {
+                                  setFormState(prev => ({ ...prev, headingFont: pairing.heading, bodyFont: pairing.body }));
+                                  setIsFontDropdownOpen(false);
+                                }}
+                                className={`flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${
+                                  isSelected
+                                    ? 'bg-rose-50/50 dark:bg-rose-950/20 text-rose-900 dark:text-rose-300 font-medium'
+                                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300'
+                                }`}
+                              >
+                                {/* Checklist Square Box */}
+                                <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                  isSelected
+                                    ? 'bg-rose-500 border-rose-500 text-white'
+                                    : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950'
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+
+                                {/* Content */}
+                                <div className="space-y-0.5 min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">
+                                      {pairing.label}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-zinc-400 shrink-0">
+                                      {pairing.heading} / {pairing.body}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1">
+                                    Cocok: {pairing.bestFor}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Typography */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Typography Font
-                  </label>
-                  <select
-                    value={formState.typography}
-                    onChange={e => setFormState(prev => ({ ...prev, typography: e.target.value as TypographyOption }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    {TYPOGRAPHY_OPTIONS.map(font => (
-                      <option key={font} value={font}>{font}</option>
-                    ))}
-                  </select>
+                  {/* Recommendation footer */}
+                  <div className="pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">Cocok Untuk:</span>{' '}
+                      {TYPOGRAPHY_PAIRINGS.find(p => p.heading === formState.headingFont && p.body === formState.bodyFont)?.bestFor || 'Bebas disesuaikan'}
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              {/* Auto Generate Checkbox */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={formState.autoGenerateColors}
-                  onChange={e => setFormState(prev => ({ ...prev, autoGenerateColors: e.target.checked }))}
-                  className="rounded text-primary focus:ring-rose-500 w-4 h-4 border-zinc-300 dark:border-zinc-800"
-                />
-                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                  Beri kebebasan AI menentukan kombinasi warna terbaik berdasarkan identitas brand (Auto Generate Palette)
-                </span>
-              </label>
             </div>
 
             {/* Card 5: SEO Preferences */}
@@ -849,139 +1132,135 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <Search className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-                  5. SEO & Compliance Preferences
+                  5. Pengaturan SEO
                 </h3>
               </div>
 
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Tandai preferensi kepatuhan SEO dan aksesibilitas yang harus dirancang secara eksplisit dalam PRD untuk Gemini Canvas:
-              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                {/* Meta Title */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    Meta Title
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={60}
+                    value={formState.metaTitle}
+                    onChange={e => setFormState(prev => ({ ...prev, metaTitle: e.target.value }))}
+                    placeholder="Misal: Kopi Nusantara Café - Kedai Kopi Premium Jakarta"
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  />
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    {formState.metaTitle.length}/60 karakter. Kosongkan agar dibuatkan otomatis oleh AI.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 pt-2">
-                {SEO_PREFERENCES.map((pref) => {
-                  const isChecked = formState.seoPreferences.includes(pref);
-                  return (
-                    <label key={pref} className={`flex items-start gap-2 p-3 border rounded-xl cursor-pointer select-none transition-all ${
-                      isChecked
-                        ? 'bg-rose-50/20 dark:bg-rose-950/5 border-rose-200/50 dark:border-rose-900/30 text-rose-800 dark:text-rose-400'
-                        : 'bg-zinc-50/40 dark:bg-zinc-900/10 border-zinc-100 dark:border-zinc-800/80 text-zinc-600 dark:text-zinc-400'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleArrayItem('seoPreferences', pref)}
-                        className="rounded text-primary focus:ring-rose-500 w-3.5 h-3.5 border-zinc-300 dark:border-zinc-800 mt-0.5"
-                      />
-                      <span className="text-[11px] font-semibold leading-normal">{pref}</span>
-                    </label>
-                  );
-                })}
+                {/* Meta Description */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    <AlignLeft className="w-3.5 h-3.5 text-primary" />
+                    Meta Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    maxLength={160}
+                    value={formState.metaDescription}
+                    onChange={e => setFormState(prev => ({ ...prev, metaDescription: e.target.value }))}
+                    placeholder="Misal: Nikmati kopi single-origin asli Indonesia dengan suasana nyaman untuk kerja dan meeting."
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100 resize-none"
+                  />
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    {formState.metaDescription.length}/160 karakter. Kosongkan agar dibuatkan otomatis oleh AI.
+                  </p>
+                </div>
+
+                {/* Google Search Console Verification Tag */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                    Tag Verifikasi GSC
+                  </label>
+                  <input
+                    type="text"
+                    value={formState.gscVerificationTag}
+                    onChange={e => setFormState(prev => ({ ...prev, gscVerificationTag: e.target.value }))}
+                    placeholder='<meta name="google-site-verification" content="..." />'
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  />
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    Tempel tag lengkap atau kode verifikasi dari Google Search Console. Opsional.
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Card 6: AI Preferences */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-6">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <Cpu className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-                  6. AI Engine Preferences
+                  6. Pengaturan AI
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* AI Generation Mode */}
-                <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                {/* Mode Pembuatan */}
+                <div className="space-y-2">
                   <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Generation Mode (Output Scope)
+                    Mode Pembuatan
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: 'Quick', label: 'Quick', desc: 'Output ringkas.' },
-                      { value: 'Balanced', label: 'Balanced', desc: 'Output sedang.' },
-                      { value: 'Professional', label: 'Professional', desc: 'Output detail.' },
-                      { value: 'Enterprise', label: 'Enterprise', desc: 'Output sangat panjang.' }
-                    ].map((mode) => (
-                      <label
-                        key={mode.value}
-                        className={`flex flex-col gap-1 p-3 border rounded-xl cursor-pointer select-none transition-all ${
-                          formState.aiMode === mode.value
-                            ? 'bg-rose-50/30 dark:bg-rose-950/10 border-primary text-zinc-900 dark:text-white ring-2 ring-rose-500/15'
-                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="aiMode"
-                            value={mode.value}
-                            checked={formState.aiMode === mode.value}
-                            onChange={() => setFormState(prev => ({ ...prev, aiMode: mode.value as AIMode }))}
-                            className="text-primary focus:ring-rose-500 w-3.5 h-3.5 border-zinc-300 dark:border-zinc-850"
-                          />
-                          <span className="text-xs font-bold">{mode.label}</span>
-                        </div>
-                        <span className="text-[10px] text-zinc-400 pl-5 leading-normal">{mode.desc}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <select
+                    value={formState.aiMode}
+                    onChange={e => setFormState(prev => ({ ...prev, aiMode: e.target.value as AIMode }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    <option value="Quick">Quick — Ringkas &amp; Cepat</option>
+                    <option value="Balanced">Balanced — Standar &amp; Seimbang</option>
+                    <option value="Professional">Professional — Detail &amp; Komprehensif</option>
+                    <option value="Enterprise">Enterprise — Sangat Panjang &amp; Ekstensive</option>
+                  </select>
                 </div>
 
-                {/* Reasoning Level */}
-                <div className="space-y-3">
+                {/* Tingkat Penalaran */}
+                <div className="space-y-2">
                   <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Reasoning Level
+                    Tingkat Penalaran
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: 'Basic', desc: 'Ekspres & efisien' },
-                      { value: 'Standard', desc: 'Analisis standar' },
-                      { value: 'Advanced', desc: 'Analisis mendalam' },
-                      { value: 'Maximum', desc: 'Analisis ekstrem' }
-                    ].map((reason) => (
-                      <label
-                        key={reason.value}
-                        className={`flex flex-col gap-1 p-3 border rounded-xl cursor-pointer select-none transition-all ${
-                          formState.reasoningLevel === reason.value
-                            ? 'bg-rose-50/30 dark:bg-rose-950/10 border-primary text-zinc-900 dark:text-white ring-2 ring-rose-500/15'
-                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="reasoningLevel"
-                            value={reason.value}
-                            checked={formState.reasoningLevel === reason.value}
-                            onChange={() => setFormState(prev => ({ ...prev, reasoningLevel: reason.value as ReasoningLevel }))}
-                            className="text-primary focus:ring-rose-500 w-3.5 h-3.5 border-zinc-300 dark:border-zinc-850"
-                          />
-                          <span className="text-xs font-bold">{reason.value}</span>
-                        </div>
-                        <span className="text-[10px] text-zinc-400 pl-5 leading-normal">{reason.desc}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <select
+                    value={formState.reasoningLevel}
+                    onChange={e => setFormState(prev => ({ ...prev, reasoningLevel: e.target.value as ReasoningLevel }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    <option value="Basic">Basic — Ekspres &amp; Efisien</option>
+                    <option value="Standard">Standard — Analisis Standar</option>
+                    <option value="Advanced">Advanced — Analisis Mendalam</option>
+                    <option value="Maximum">Maximum — Analisis Ekstrem</option>
+                  </select>
                 </div>
-              </div>
 
-              {/* Creativity Level Slider */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300 font-mono">
-                  <span>CREATIVITY SLIDER</span>
-                  <span className="text-primary">{formState.creativitySlider}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={formState.creativitySlider}
-                  onChange={e => setFormState(prev => ({ ...prev, creativitySlider: parseInt(e.target.value) }))}
-                  className="w-full accent-primary bg-zinc-100 dark:bg-zinc-800 h-2 rounded-lg cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
-                  <span>0% (Patuhi Referensi)</span>
-                  <span>50% (Saran Seimbang)</span>
-                  <span>100% (Inovasi Maksimal)</span>
+                {/* Tingkat Kreativitas */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Tingkat Kreativitas
+                  </label>
+                  <select
+                    value={formState.creativitySlider}
+                    onChange={e => setFormState(prev => ({ ...prev, creativitySlider: parseInt(e.target.value) }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    <option value={0}>0% — Patuhi Referensi (Strict)</option>
+                    <option value={20}>20% — Konservatif</option>
+                    <option value={30}>30% — Presisi Moderat</option>
+                    <option value={50}>50% — Seimbang (Balanced)</option>
+                    <option value={60}>60% — Optimal &amp; Kreatif</option>
+                    <option value={70}>70% — Sangat Kreatif</option>
+                    <option value={80}>80% — Inovatif Tinggi</option>
+                    <option value={100}>100% — Inovasi Maksimal</option>
+                    {!([0, 20, 30, 50, 60, 70, 80, 100].includes(formState.creativitySlider)) && (
+                      <option value={formState.creativitySlider}>{formState.creativitySlider}% — Custom</option>
+                    )}
+                  </select>
                 </div>
               </div>
             </div>
@@ -991,7 +1270,7 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
               <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <MessageSquare className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold text-base text-zinc-900 dark:text-white">
-                  7. Extra Instructions / Batasan Tambahan
+                  7. Perintah / Batasan Tambahan
                 </h3>
               </div>
 

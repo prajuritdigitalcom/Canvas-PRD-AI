@@ -17,6 +17,9 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
   logoLink: '',
   referenceInformation: '',
   referenceLinks: [],
+  designMode: 'guided-tokens',
+  designMoodId: 'auto',
+  designDensity: 'auto',
   brandStyles: [],
   animationLevel: 'Medium',
   illustrationStyle: 'Flat',
@@ -25,8 +28,11 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
   secondaryColor: '#111827',
   accentColor: '#3b82f6',
   autoGenerateColors: true,
-  typography: 'Inter',
-  seoPreferences: ['Semantic HTML', 'Fast Loading', 'Heading Structure', 'Accessibility'],
+  headingFont: 'Inter',
+  bodyFont: 'Inter',
+  metaTitle: '',
+  metaDescription: '',
+  gscVerificationTag: '',
   aiMode: 'Balanced',
   creativitySlider: 50,
   reasoningLevel: 'Standard',
@@ -91,7 +97,7 @@ export default function App() {
         setIsUnlocked(true);
         setPasswordError('');
       } else {
-        setPasswordError('Password salah, silakan coba lagi.');
+        setPasswordError(data.error || 'Password salah, silakan coba lagi.');
       }
     } catch (err) {
       console.error('Error verifying password:', err);
@@ -110,7 +116,8 @@ export default function App() {
     const savedForm = localStorage.getItem('canvas_prd_form_draft');
     if (savedForm) {
       try {
-        setFormState(JSON.parse(savedForm));
+        const parsedDraft = JSON.parse(savedForm);
+        setFormState({ ...DEFAULT_FORM_STATE, ...parsedDraft });
       } catch (e) {
         console.error('Gagal memulihkan draf form:', e);
       }

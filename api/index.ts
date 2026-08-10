@@ -3,6 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import { buildSystemPrompt, buildUserPrompt } from '../src/prompts/promptTemplates.js';
+import { DESIGN_MOODS, WEBSITE_TYPE_TO_MOOD_MAP } from '../src/data/designMoods.js';
 
 export const maxDuration = 60; // Set Vercel serverless function timeout to 60 seconds
 
@@ -13,6 +14,17 @@ const app = express();
 // Set payload size limits for raw text and attachments
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ================== Rate Limiter Sederhana untuk Password Gate ==================
+// Catatan: state ini per-proses (in-memory). Di lingkungan serverless dengan banyak
+// instance paralel (mis. Vercel), proteksi ini tidak sempurna karena tiap instance
+// punya memori sendiri — tapi tetap menaikkan effort brute-force secara signifikan
+// dibanding tanpa proteksi sama sekali, dan bekerja penuh saat dijalankan sebagai
+// server Node biasa (mis. `npm run start`). Untuk proteksi level produksi yang lebih
+// kuat, pertimbangkan rate-limiting di edge/firewall — di luar cakupan perubahan ini.
+const passwordAttempts = new Map<string, { count: number; firstAttemptAt: number }>();
+const MAX_PASSWORD_ATTEMPTS = 5;
+const PASSWORD_ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 menit
 
 // TODO: Tinjau setiap ada rilis model baru dari Google.
 // Sumber resmi: https://ai.google.dev/gemini-api/docs/models
@@ -46,6 +58,29 @@ const getThinkingConfig = (reasoningLevel?: string) => {
   }
   return { thinkingConfig: { thinkingLevel: level } };
 };
+
+// ================== Prompt Injection Guard & Input Length Limit ==================
+const SUSPICIOUS_PATTERNS = [
+  'ignore previous instructions',
+  'ignore all previous',
+  'disregard previous instructions',
+  'abaikan instruksi sebelumnya',
+  'abaikan semua instruksi',
+  'reveal system prompt',
+  'show system prompt',
+  'reveal your instructions',
+  'system prompt:',
+  'override system instructions',
+];
+
+function isSuspiciousPromptInjection(text?: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return SUSPICIOUS_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+const MAX_BRIEF_LENGTH = 10000; // karakter, untuk form.referenceInformation
+const MAX_EXTRA_INSTRUCTION_LENGTH = 3000; // karakter, untuk form.extraInstruction
 
 // Helper to collect and sort all keys from environment variables (GEMINI_API_KEY, GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.)
 const getSystemApiKeys = (): string[] => {
@@ -106,13 +141,37 @@ app.get('/api/status', (req, res) => {
 
 // API endpoint to verify user access password
 app.post('/api/verify-password', (req, res) => {
-  const { password } = req.body;
   const correctPassword = process.env.PASSWORD || 'admin@prajuritdigital.com';
-  if (password === correctPassword) {
-    return res.json({ success: true });
-  } else {
-    return res.json({ success: false });
+
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+    || req.socket.remoteAddress
+    || 'unknown';
+  const now = Date.now();
+  const record = passwordAttempts.get(clientIp);
+
+  if (record) {
+    const withinWindow = now - record.firstAttemptAt < PASSWORD_ATTEMPT_WINDOW_MS;
+    if (withinWindow && record.count >= MAX_PASSWORD_ATTEMPTS) {
+      const retryAfterSec = Math.ceil((record.firstAttemptAt + PASSWORD_ATTEMPT_WINDOW_MS - now) / 1000);
+      return res.status(429).json({
+        success: false,
+        error: `Terlalu banyak percobaan gagal. Silakan coba lagi dalam ${retryAfterSec} detik.`,
+      });
+    }
+    if (!withinWindow) {
+      passwordAttempts.set(clientIp, { count: 0, firstAttemptAt: now });
+    }
   }
+
+  const { password } = req.body;
+  if (password === correctPassword) {
+    passwordAttempts.delete(clientIp);
+    return res.json({ success: true });
+  }
+
+  const current = passwordAttempts.get(clientIp) || { count: 0, firstAttemptAt: now };
+  passwordAttempts.set(clientIp, { count: current.count + 1, firstAttemptAt: current.firstAttemptAt });
+  return res.json({ success: false, error: 'Password salah, silakan coba lagi.' });
 });
 
 // API endpoint for PRD generation
@@ -124,6 +183,27 @@ app.post('/api/generate-prd', async (req, res) => {
     if (!form) {
       console.error('[CANVAS-PRD-AI] [ERROR] Payload form kosong atau tidak valid.');
       return res.status(400).json({ error: 'Data form tidak ditemukan dalam body request.' });
+    }
+
+    if (form.referenceInformation && form.referenceInformation.length > MAX_BRIEF_LENGTH) {
+      console.warn('[CANVAS-PRD-AI] [VALIDATION] Brief mentah melebihi batas panjang.');
+      return res.status(400).json({
+        error: `Brief mentah terlalu panjang (maksimal ${MAX_BRIEF_LENGTH} karakter). Mohon persingkat brief Anda.`,
+      });
+    }
+
+    if (form.extraInstruction && form.extraInstruction.length > MAX_EXTRA_INSTRUCTION_LENGTH) {
+      console.warn('[CANVAS-PRD-AI] [VALIDATION] Extra instruction melebihi batas panjang.');
+      return res.status(400).json({
+        error: `Instruksi tambahan terlalu panjang (maksimal ${MAX_EXTRA_INSTRUCTION_LENGTH} karakter).`,
+      });
+    }
+
+    if (isSuspiciousPromptInjection(form.referenceInformation) || isSuspiciousPromptInjection(form.extraInstruction)) {
+      console.warn('[CANVAS-PRD-AI] [VALIDATION] Terdeteksi indikasi prompt-injection pada input user.');
+      return res.status(400).json({
+        error: 'Input Anda terdeteksi mengandung instruksi ilegal atau upaya manipulasi prompt. Mohon masukkan deskripsi bisnis yang valid.',
+      });
     }
 
     // Build model chain for this request
@@ -201,9 +281,29 @@ app.post('/api/generate-prd', async (req, res) => {
         }
       });
 
+      // Resolve Design Mode / Mood / Density sebelum membangun prompt
+      const resolvedDesignMode: 'freeform' | 'guided-tokens' | 'guided-full' = form.designMode || 'guided-tokens';
+      let resolvedMoodId = form.designMoodId || 'auto';
+      let resolvedDensityId = form.designDensity || 'auto';
+
+      if (resolvedDesignMode !== 'freeform' && resolvedMoodId === 'auto') {
+        const mapped = WEBSITE_TYPE_TO_MOOD_MAP[form.websiteType];
+        resolvedMoodId = mapped?.moodId || DESIGN_MOODS[0].id;
+        if (resolvedDensityId === 'auto') {
+          resolvedDensityId = mapped?.density || 'standard';
+        }
+      }
+      if (resolvedDesignMode === 'guided-full' && resolvedDensityId === 'auto') {
+        resolvedDensityId = 'standard';
+      }
+
       const creativityDirective = getCreativityInstruction(form.creativitySlider);
       const systemInstruction = buildSystemPrompt() + `\n\nDirectives for Creativity Level (${form.creativitySlider}%): ${creativityDirective}`;
-      const userPrompt = buildUserPrompt(form);
+      const userPrompt = buildUserPrompt(form, {
+        mode: resolvedDesignMode,
+        moodId: resolvedMoodId,
+        densityId: resolvedDensityId,
+      });
       const thinkingConfig = getThinkingConfig(form.reasoningLevel);
 
       console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%...`);
@@ -356,6 +456,18 @@ app.post('/api/analyze-brief', async (req, res) => {
       return res.status(400).json({ error: 'Data form tidak ditemukan dalam body request.' });
     }
 
+    if (form.referenceInformation && form.referenceInformation.length > MAX_BRIEF_LENGTH) {
+      return res.status(400).json({
+        error: `Brief mentah terlalu panjang (maksimal ${MAX_BRIEF_LENGTH} karakter). Mohon persingkat brief Anda.`,
+      });
+    }
+
+    if (isSuspiciousPromptInjection(form.referenceInformation)) {
+      return res.status(400).json({
+        error: 'Brief mentah terdeteksi mengandung instruksi ilegal atau manipulasi prompt. Mohon masukkan deskripsi bisnis yang valid.',
+      });
+    }
+
     let requestModelChain = [...DEFAULT_MODEL_CHAIN];
     if (selectedModel && typeof selectedModel === 'string' && selectedModel.trim()) {
       const chosen = selectedModel.trim();
@@ -442,14 +554,15 @@ Based on the brief, determine:
 2. Goal Website: Choose 1-3 relevant options from: "Lead Generation", "WhatsApp", "Sales", "Brand Awareness", "Appointment", "Booking", "Download Catalog", "Registration", "Recruitment", "Portfolio", "Education", "Information", "Customer Support", "Newsletter", "Custom".
 3. Brand Styles: Choose 2-4 relevant styles from: "Modern", "Minimalist", "Corporate", "Elegant", "Luxury", "Technology", "Creative", "Friendly", "Professional", "Startup", "Apple Style", "Stripe Style", "Glassmorphism", "Neumorphism", "Material Design", "Custom".
 4. Visual Style & Color Palette: Suggest Primary, Secondary, and Accent Hex colors matching the business vibe.
-5. Typography Font: Suggest one from "Inter", "Poppins", "DM Sans", "Plus Jakarta Sans", "Roboto", "Manrope", "Auto".
+5. Typography: Suggest a "headingFont" and a "bodyFont" (can be the same or different) from: "Inter", "Poppins", "DM Sans", "Sora", "Playfair Display", "Cormorant Garamond", "Unbounded", "Manrope", "Space Grotesk", "JetBrains Mono", "Work Sans", "Quicksand", "Nunito", "Fraunces", "Lora", "Auto". Prefer serif fonts (Playfair Display, Cormorant Garamond, Fraunces, Lora) for Elegant/Luxury/Editorial brand styles, display/mono fonts (Unbounded, Space Grotesk, JetBrains Mono) for Technology/Creative, and rounded fonts (Quicksand, Nunito) for Friendly/Casual.
 6. Animation Level: Suggest one from "None", "Minimal", "Medium", "Premium", "Luxury", "WOW".
 7. Illustration Style: Suggest one from "Flat", "3D", "Photography", "AI Generated", "Icons Only", "Corporate", "Minimal".
 8. Preferred Copywriting Tone: Suggest one from "Professional", "Friendly", "Premium", "Luxury", "Corporate", "Casual", "Creative", "Persuasive".
-9. SEO strategy: Suggest 3-7 relevant checkboxes from: "Semantic HTML", "Schema Ready", "Fast Loading", "Local SEO", "SEO Friendly URL", "Heading Structure", "Internal CTA", "External CTA", "Meta Title", "Meta Description", "OG Tags", "Accessibility", "Structured Content", "Image Alt Text", "Breadcrumb Ready".
+9. SEO strategy: Suggest an SEO-optimized "metaTitle" (max 60 characters) and "metaDescription" (max 160 characters) tailored to this specific business, written in the requested project language.
 10. AI Confidence level (0-100) for business analysis, target audience, brand style, and SEO strategy.
 11. AI Assumptions: Suggest 3-5 assumptions made from the raw input (e.g. B2B, focus, CTAs, structure etc.).
 12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages, estimatedSections).
+13. Design Mood ID: Suggest one id from "${DESIGN_MOODS.map(m => m.id).join('", "')}" — pick the id whose visual identity best fits the tone of THIS specific brief (e.g. brief mentions "kesan mewah/eksklusif" → prefer dark-luxury even if the default for that Website Type is different), not just a generic default.
 
 Output strictly in JSON matching the specified schema. All text in 'assumptions' and 'quickReview' must be in Indonesian or the requested project language.`,
           ...thinkingConfig,
@@ -492,6 +605,7 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                   targetAudience: { type: Type.ARRAY, items: { type: Type.STRING } },
                   goalWebsite: { type: Type.ARRAY, items: { type: Type.STRING } },
                   brandStyles: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  designMoodId: { type: Type.STRING, description: `Salah satu dari: ${DESIGN_MOODS.map(m => m.id).join(', ')}. Pilih berdasarkan konteks brief spesifik (mis. brief menyebut "butuh kesan mewah" → boleh override default berbasis WebsiteType).` },
                   animationLevel: { type: Type.STRING, description: '"None", "Minimal", "Medium", "Premium", "Luxury", "WOW"' },
                   illustrationStyle: { type: Type.STRING, description: '"Flat", "3D", "Photography", "AI Generated", "Icons Only", "Corporate", "Minimal"' },
                   preferredTone: { type: Type.STRING, description: '"Professional", "Friendly", "Premium", "Luxury", "Corporate", "Casual", "Creative", "Persuasive"' },
@@ -499,16 +613,18 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                   secondaryColor: { type: Type.STRING, description: 'Hex code' },
                   accentColor: { type: Type.STRING, description: 'Hex code' },
                   autoGenerateColors: { type: Type.BOOLEAN },
-                  typography: { type: Type.STRING, description: '"Inter", "Poppins", "DM Sans", "Plus Jakarta Sans", "Roboto", "Manrope", "Auto"' },
-                  seoPreferences: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  headingFont: { type: Type.STRING, description: 'Font for headings (H1-H6). One of the Typography options listed in the instructions, or "Auto".' },
+                  bodyFont: { type: Type.STRING, description: 'Font for body/paragraph/UI text. One of the Typography options listed in the instructions, or "Auto".' },
+                  metaTitle: { type: Type.STRING, description: 'SEO-optimized meta title, max 60 characters' },
+                  metaDescription: { type: Type.STRING, description: 'SEO-optimized meta description, max 160 characters' },
                   aiMode: { type: Type.STRING, description: '"Quick", "Balanced", "Professional", "Enterprise"' },
                   creativitySlider: { type: Type.INTEGER },
                   reasoningLevel: { type: Type.STRING, description: '"Basic", "Standard", "Advanced", "Maximum"' }
                 },
                 required: [
-                  'targetAudience', 'goalWebsite', 'brandStyles', 'animationLevel',
+                  'targetAudience', 'goalWebsite', 'brandStyles', 'designMoodId', 'animationLevel',
                   'illustrationStyle', 'preferredTone', 'primaryColor', 'secondaryColor',
-                  'accentColor', 'autoGenerateColors', 'typography', 'seoPreferences',
+                  'accentColor', 'autoGenerateColors', 'headingFont', 'bodyFont', 'metaTitle', 'metaDescription',
                   'aiMode', 'creativitySlider', 'reasoningLevel'
                 ]
               }

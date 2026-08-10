@@ -51,9 +51,18 @@ export type TypographyOption =
   | 'Inter'
   | 'Poppins'
   | 'DM Sans'
-  | 'Plus Jakarta Sans'
-  | 'Roboto'
+  | 'Sora'
+  | 'Playfair Display'
+  | 'Cormorant Garamond'
+  | 'Unbounded'
   | 'Manrope'
+  | 'Space Grotesk'
+  | 'JetBrains Mono'
+  | 'Work Sans'
+  | 'Quicksand'
+  | 'Nunito'
+  | 'Fraunces'
+  | 'Lora'
   | 'Auto';
 
 export type AIMode = 'Quick' | 'Balanced' | 'Professional' | 'Enterprise';
@@ -61,6 +70,8 @@ export type AIMode = 'Quick' | 'Balanced' | 'Professional' | 'Enterprise';
 export type ReasoningLevel = 'Basic' | 'Standard' | 'Advanced' | 'Maximum';
 
 export type GenerationMode = 'auto' | 'manual';
+
+export type DesignMode = 'freeform' | 'guided-tokens' | 'guided-full';
 
 export interface AIAnalysisResult {
   confidence: {
@@ -84,6 +95,7 @@ export interface AIAnalysisResult {
     targetAudience: string[];
     goalWebsite: string[];
     brandStyles: string[];
+    designMoodId: string;
     animationLevel: AnimationLevel;
     illustrationStyle: IllustrationStyle;
     preferredTone: PreferredTone;
@@ -91,8 +103,10 @@ export interface AIAnalysisResult {
     secondaryColor: string;
     accentColor: string;
     autoGenerateColors: boolean;
-    typography: TypographyOption;
-    seoPreferences: string[];
+    headingFont: TypographyOption;
+    bodyFont: TypographyOption;
+    metaTitle: string;
+    metaDescription: string;
     aiMode: AIMode;
     creativitySlider: number;
     reasoningLevel: ReasoningLevel;
@@ -116,6 +130,11 @@ export interface ProjectFormState {
   referenceInformation: string;
   referenceLinks: string[];
 
+  // Design System (Mood x Density)
+  designMode: DesignMode;
+  designMoodId: string;
+  designDensity: 'minimal' | 'standard' | 'rich' | 'auto';
+
   // Design Preferences
   brandStyles: string[];
   customBrandStyle?: string;
@@ -130,10 +149,13 @@ export interface ProjectFormState {
   autoGenerateColors: boolean;
 
   // Typography
-  typography: TypographyOption;
+  headingFont: TypographyOption;
+  bodyFont: TypographyOption;
 
   // SEO Preferences
-  seoPreferences: string[];
+  metaTitle: string;
+  metaDescription: string;
+  gscVerificationTag: string;
 
   // AI Preferences
   aiMode: AIMode;
