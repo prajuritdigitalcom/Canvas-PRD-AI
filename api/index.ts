@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import { buildSystemPrompt, buildUserPrompt } from '../src/prompts/promptTemplates.js';
 
 export const maxDuration = 60; // Set Vercel serverless function timeout to 60 seconds
@@ -13,6 +13,39 @@ const app = express();
 // Set payload size limits for raw text and attachments
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// TODO: Tinjau setiap ada rilis model baru dari Google.
+// Sumber resmi: https://ai.google.dev/gemini-api/docs/models
+// Sumber changelog: https://ai.google.dev/gemini-api/docs/changelog
+const DEFAULT_MODEL_CHAIN: string[] = (process.env.GEMINI_MODEL_CHAIN
+  ? process.env.GEMINI_MODEL_CHAIN.split(',').map(m => m.trim()).filter(Boolean)
+  : ['gemini-3.6-flash', 'gemini-3.5-flash']); // primary -> fallback
+
+// Translate creativity slider (0-100) to explicit prompt instructions
+const getCreativityInstruction = (sliderValue: number): string => {
+  if (sliderValue <= 30) {
+    return 'Patuhi referensi input secara ketat, minim penambahan asumsi baru.';
+  } else if (sliderValue <= 70) {
+    return 'Seimbangkan antara mengikuti referensi dan menambahkan rekomendasi best-practice yang wajar.';
+  } else {
+    return 'Bebas berinovasi dan menambahkan ide/asumsi profesional secara luas, selama tetap relevan dengan bisnis.';
+  }
+};
+
+// Map reasoning level to Google GenAI thinkingLevel enum
+const getThinkingConfig = (reasoningLevel?: string) => {
+  let level = ThinkingLevel.LOW;
+  if (reasoningLevel === 'Basic') {
+    level = ThinkingLevel.MINIMAL;
+  } else if (reasoningLevel === 'Standard') {
+    level = ThinkingLevel.LOW;
+  } else if (reasoningLevel === 'Advanced') {
+    level = ThinkingLevel.MEDIUM;
+  } else if (reasoningLevel === 'Maximum') {
+    level = ThinkingLevel.HIGH;
+  }
+  return { thinkingConfig: { thinkingLevel: level } };
+};
 
 // Helper to collect and sort all keys from environment variables (GEMINI_API_KEY, GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.)
 const getSystemApiKeys = (): string[] => {
@@ -66,7 +99,8 @@ app.get('/api/status', (req, res) => {
   res.json({
     status: 'ok',
     hasSystemApiKey: systemKeys.length > 0,
-    systemApiKeyCount: systemKeys.length
+    systemApiKeyCount: systemKeys.length,
+    defaultModels: DEFAULT_MODEL_CHAIN
   });
 });
 
@@ -86,13 +120,20 @@ app.post('/api/generate-prd', async (req, res) => {
   console.log('\n=========================================');
   console.log('[CANVAS-PRD-AI] [REQUEST] Menerima permintaan pembuatan PRD baru...');
   try {
-    const { form, userApiKeys: bodyUserApiKeys } = req.body;
+    const { form, userApiKeys: bodyUserApiKeys, selectedModel } = req.body;
     if (!form) {
       console.error('[CANVAS-PRD-AI] [ERROR] Payload form kosong atau tidak valid.');
       return res.status(400).json({ error: 'Data form tidak ditemukan dalam body request.' });
     }
 
-    console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Mode AI: ${form.aiMode} | Kreativitas: ${form.creativitySlider}%`);
+    // Build model chain for this request
+    let requestModelChain = [...DEFAULT_MODEL_CHAIN];
+    if (selectedModel && typeof selectedModel === 'string' && selectedModel.trim()) {
+      const chosen = selectedModel.trim();
+      requestModelChain = [chosen, ...DEFAULT_MODEL_CHAIN.filter(m => m !== chosen)];
+    }
+
+    console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Mode AI: ${form.aiMode} | Kreativitas: ${form.creativitySlider}% | Model Chain: [${requestModelChain.join(', ')}]`);
 
     // Collect user/visitor keys from body or headers
     let visitorKeys: string[] = [];
@@ -150,7 +191,7 @@ app.post('/api/generate-prd', async (req, res) => {
     }
 
     // Generation helper
-    const runGeneration = async (apiKey: string) => {
+    const runGeneration = async (apiKey: string, modelName: string) => {
       const ai = new GoogleGenAI({
         apiKey,
         httpOptions: {
@@ -160,20 +201,19 @@ app.post('/api/generate-prd', async (req, res) => {
         }
       });
 
-      const systemInstruction = buildSystemPrompt();
+      const creativityDirective = getCreativityInstruction(form.creativitySlider);
+      const systemInstruction = buildSystemPrompt() + `\n\nDirectives for Creativity Level (${form.creativitySlider}%): ${creativityDirective}`;
       const userPrompt = buildUserPrompt(form);
+      const thinkingConfig = getThinkingConfig(form.reasoningLevel);
 
-      // Adjust temperature based on creativity slider (0 to 100 -> 0.0 to 1.0)
-      const temperature = Math.max(0, Math.min(1, form.creativitySlider / 100));
-
-      console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini dengan model: "gemini-3.5-flash", temperatur: ${temperature}...`);
+      console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%...`);
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: modelName,
         contents: userPrompt,
         config: {
           systemInstruction,
-          temperature,
+          ...thinkingConfig,
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -214,30 +254,39 @@ app.post('/api/generate-prd', async (req, res) => {
     let responseText = '';
     let successfulKeyType: 'env' | 'visitor' = 'env';
     let successfulKeyIndex = 1;
+    let successfulModel = requestModelChain[0];
     const errorsList: string[] = [];
 
-    // Rotate through all available keys
+    // Rotate through API keys and Model chain
     for (const attempt of attemptsQueue) {
-      try {
-        console.log(`[CANVAS-PRD-AI] [ROTASI-KUNCI] Mencoba generasi menggunakan Kunci ${attempt.type === 'env' ? 'Server (Vercel)' : 'Pengunjung (Browser)'} #${attempt.index}...`);
-        const result = await runGeneration(attempt.key);
-        responseText = result.text || '';
-        successfulKeyType = attempt.type;
-        successfulKeyIndex = attempt.index;
-        console.log(`✅ [CANVAS-PRD-AI] [SUKSES] Berhasil memproses PRD menggunakan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}!`);
-        break; // Stop iterating upon first success
-      } catch (err: any) {
-        const errMsg = err?.message || String(err);
-        console.error(`❌ [CANVAS-PRD-AI] [ERROR-ROTASI] Gagal menggunakan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}: ${errMsg}`);
-        errorsList.push(`Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}: ${errMsg}`);
+      let keySuccess = false;
+      for (const modelName of requestModelChain) {
+        try {
+          console.log(`[CANVAS-PRD-AI] [ROTASI-PERCOBAAN] Mencoba Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index} dengan model "${modelName}"...`);
+          const result = await runGeneration(attempt.key, modelName);
+          responseText = result.text || '';
+          successfulKeyType = attempt.type;
+          successfulKeyIndex = attempt.index;
+          successfulModel = modelName;
+          keySuccess = true;
+          console.log(`✅ [CANVAS-PRD-AI] [SUKSES] Berhasil memproses PRD menggunakan model "${modelName}" dan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}!`);
+          break; // Stop iterating models
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          console.error(`❌ [CANVAS-PRD-AI] [ERROR-ROTASI] Gagal dengan model "${modelName}" pada Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}: ${errMsg}`);
+          errorsList.push(`Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index} (${modelName}): ${errMsg}`);
+        }
+      }
+      if (keySuccess) {
+        break; // Stop iterating keys upon first success
       }
     }
 
-    // If all keys in queue failed
+    // If all keys and models in queue failed
     if (!responseText) {
-      console.error('[CANVAS-PRD-AI] [FATAL-ROTASI] Seluruh API Key yang terkonfigurasi gagal memproses permintaan.');
+      console.error('[CANVAS-PRD-AI] [FATAL-ROTASI] Seluruh kombinasi API Key dan Model gagal memproses permintaan.');
       return res.status(500).json({
-        error: `Seluruh API Key yang terkonfigurasi (${attemptsQueue.length} kunci) gagal memproses permintaan. Silakan periksa limit kuota Anda.\nDetail kesalahan:\n- ${errorsList.join('\n- ')}`
+        error: `Seluruh API Key dan Model yang terkonfigurasi gagal memproses permintaan. Silakan periksa limit kuota Anda.\nDetail kesalahan:\n- ${errorsList.join('\n- ')}`
       });
     }
 
@@ -251,7 +300,7 @@ app.post('/api/generate-prd', async (req, res) => {
       const wordCount = markdownText.split(/\s+/).filter(Boolean).length;
       const readingTime = Math.max(1, Math.round(wordCount / 200)); // ~200 words per minute
 
-      console.log(`[CANVAS-PRD-AI] [PARSE-SUKSES] Berhasil parsing JSON. Karakter Markdown: ${markdownText.length} | Jumlah kata: ${wordCount}`);
+      console.log(`[CANVAS-PRD-AI] [PARSE-SUKSES] Berhasil parsing JSON (${successfulModel}). Karakter Markdown: ${markdownText.length} | Jumlah kata: ${wordCount}`);
 
       return res.json({
         markdown: markdownText,
@@ -260,7 +309,8 @@ app.post('/api/generate-prd', async (req, res) => {
         wordCount,
         readingTime,
         usedKeyType: successfulKeyType,
-        usedKeyIndex: successfulKeyIndex
+        usedKeyIndex: successfulKeyIndex,
+        usedModel: successfulModel
       });
     } catch (parseErr: any) {
       console.error('❌ [CANVAS-PRD-AI] [PARSE-FAIL] Gagal mem-parse JSON hasil AI:', parseErr);
@@ -279,7 +329,8 @@ app.post('/api/generate-prd', async (req, res) => {
         wordCount,
         readingTime,
         usedKeyType: successfulKeyType,
-        usedKeyIndex: successfulKeyIndex
+        usedKeyIndex: successfulKeyIndex,
+        usedModel: successfulModel
       });
     }
 
@@ -299,13 +350,19 @@ app.post('/api/analyze-brief', async (req, res) => {
   console.log('\n=========================================');
   console.log('[CANVAS-PRD-AI] [REQUEST] Menerima permintaan analisis brief otomatis...');
   try {
-    const { form, userApiKeys: bodyUserApiKeys } = req.body;
+    const { form, userApiKeys: bodyUserApiKeys, selectedModel } = req.body;
     if (!form) {
       console.error('[CANVAS-PRD-AI] [ERROR] Payload form kosong atau tidak valid.');
       return res.status(400).json({ error: 'Data form tidak ditemukan dalam body request.' });
     }
 
-    console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Tipe Website: ${form.websiteType}`);
+    let requestModelChain = [...DEFAULT_MODEL_CHAIN];
+    if (selectedModel && typeof selectedModel === 'string' && selectedModel.trim()) {
+      const chosen = selectedModel.trim();
+      requestModelChain = [chosen, ...DEFAULT_MODEL_CHAIN.filter(m => m !== chosen)];
+    }
+
+    console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Tipe Website: ${form.websiteType} | Model Chain: [${requestModelChain.join(', ')}]`);
 
     // Collect user/visitor keys
     let visitorKeys: string[] = [];
@@ -349,7 +406,7 @@ app.post('/api/analyze-brief', async (req, res) => {
     }
 
     // Analysis run helper
-    const runAnalysis = async (apiKey: string) => {
+    const runAnalysis = async (apiKey: string, modelName: string) => {
       const ai = new GoogleGenAI({
         apiKey,
         httpOptions: {
@@ -359,8 +416,12 @@ app.post('/api/analyze-brief', async (req, res) => {
         }
       });
 
+      const thinkingConfig = getThinkingConfig(form.reasoningLevel || 'Standard');
+
+      console.log(`[CANVAS-PRD-AI] [MODEL-START-ANALYSIS] Menganalisis brief dengan model: "${modelName}"...`);
+
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: modelName,
         contents: `Analyze this raw website brief and extract appropriate metadata, parameters, and design/content strategies.
 Project Name: "${form.projectName}"
 Website Type: "${form.websiteType}"
@@ -391,7 +452,7 @@ Based on the brief, determine:
 12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages, estimatedSections).
 
 Output strictly in JSON matching the specified schema. All text in 'assumptions' and 'quickReview' must be in Indonesian or the requested project language.`,
-          temperature: 0.2,
+          ...thinkingConfig,
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -463,33 +524,42 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
     let responseText = '';
     let successfulKeyType: 'env' | 'visitor' = 'env';
     let successfulKeyIndex = 1;
+    let successfulModel = requestModelChain[0];
     const errorsList: string[] = [];
 
-    // Rotate keys
+    // Rotate keys & models
     for (const attempt of attemptsQueue) {
-      try {
-        console.log(`[CANVAS-PRD-AI] [ROTASI-KUNCI-ANALISIS] Mencoba dengan Kunci ${attempt.type === 'env' ? 'Server (Vercel)' : 'Pengunjung (Browser)'} #${attempt.index}...`);
-        const result = await runAnalysis(attempt.key);
-        responseText = result.text || '';
-        successfulKeyType = attempt.type;
-        successfulKeyIndex = attempt.index;
-        console.log(`✅ [CANVAS-PRD-AI] [SUKSES-ANALISIS] Berhasil analisis brief menggunakan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}!`);
+      let keySuccess = false;
+      for (const modelName of requestModelChain) {
+        try {
+          console.log(`[CANVAS-PRD-AI] [ROTASI-ANALISIS] Mencoba dengan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index} & model "${modelName}"...`);
+          const result = await runAnalysis(attempt.key, modelName);
+          responseText = result.text || '';
+          successfulKeyType = attempt.type;
+          successfulKeyIndex = attempt.index;
+          successfulModel = modelName;
+          keySuccess = true;
+          console.log(`✅ [CANVAS-PRD-AI] [SUKSES-ANALISIS] Berhasil analisis brief menggunakan model "${modelName}" dan Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}!`);
+          break;
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          console.error(`❌ [CANVAS-PRD-AI] [ERROR-ANALISIS] Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index} (${modelName}): ${errMsg}`);
+          errorsList.push(`Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index} (${modelName}): ${errMsg}`);
+        }
+      }
+      if (keySuccess) {
         break;
-      } catch (err: any) {
-        const errMsg = err?.message || String(err);
-        console.error(`❌ [CANVAS-PRD-AI] [ERROR-ANALISIS] Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}: ${errMsg}`);
-        errorsList.push(`Kunci ${attempt.type === 'env' ? 'Server' : 'Pengunjung'} #${attempt.index}: ${errMsg}`);
       }
     }
 
     if (!responseText) {
       return res.status(500).json({
-        error: `Seluruh API Key gagal memproses analisis brief. Detail kesalahan:\n- ${errorsList.join('\n- ')}`
+        error: `Seluruh API Key dan Model gagal memproses analisis brief. Detail kesalahan:\n- ${errorsList.join('\n- ')}`
       });
     }
 
     const parsed = JSON.parse(responseText.trim());
-    return res.json(parsed);
+    return res.json({ ...parsed, usedModel: successfulModel });
 
   } catch (globalErr: any) {
     console.error('[CANVAS-PRD-AI] [FATAL-ERROR-ANALISIS] Global error pada api route:', globalErr);

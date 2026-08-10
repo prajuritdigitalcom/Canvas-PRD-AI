@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Settings, Eye, EyeOff, ShieldCheck, Key, AlertTriangle, Trash2, Plus, X } from 'lucide-react';
+import { Settings, Eye, EyeOff, ShieldCheck, Key, AlertTriangle, Trash2, Plus, X, Cpu, CheckCircle2 } from 'lucide-react';
 
 interface SettingsViewProps {
   userApiKeys: string[];
   setUserApiKeys: (keys: string[]) => void;
+  selectedModel?: string;
+  setSelectedModel?: (model: string) => void;
   hasSystemApiKey: boolean;
   systemApiKeyCount?: number;
   onResetProject: () => void;
@@ -12,6 +14,8 @@ interface SettingsViewProps {
 export default function SettingsView({
   userApiKeys,
   setUserApiKeys,
+  selectedModel = 'gemini-3.6-flash',
+  setSelectedModel,
   hasSystemApiKey,
   systemApiKeyCount = 0,
   onResetProject,
@@ -20,6 +24,27 @@ export default function SettingsView({
   const [showKey, setShowKey] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const availableModels = [
+    {
+      id: 'gemini-3.6-flash',
+      name: 'Gemini 3.6 Flash',
+      badge: 'Rekomendasi Utama (GA)',
+      desc: 'Model Generasi Terbaru (2026) dengan performa agentic & coding terbaik dan efisiensi tinggi.'
+    },
+    {
+      id: 'gemini-3.5-flash',
+      name: 'Gemini 3.5 Flash',
+      badge: 'Fallback Stable',
+      desc: 'Model versi sebelumnya yang stabil sebagai cadangan otomatis jika model utama berhalangan.'
+    },
+    {
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro Preview',
+      badge: 'Advanced Reasoning',
+      desc: 'Model kelas Pro untuk penalaran dan arsitektur produk yang sangat kompleks.'
+    }
+  ];
 
   const handleAddKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,6 +224,56 @@ export default function SettingsView({
               API Key hanya disimpan sementara di browser Anda dan otomatis terhapus saat tab atau browser ditutup.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* AI Model Selection Card */}
+      <div className="bg-white border border-zinc-100 rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="flex items-center gap-2.5">
+          <Cpu className="w-5 h-5 text-primary" />
+          <h3 className="font-display font-bold text-base text-zinc-900">
+            Pilihan Model AI Gemini
+          </h3>
+        </div>
+
+        <p className="text-xs text-zinc-500 leading-relaxed">
+          Pilih model utama untuk generasi PRD dan analisis. Jika model utama mengalami gangguan atau rate limit, sistem otomatis mengaktifkan fallback chain ke model stabil berikutnya.
+        </p>
+
+        <div className="grid grid-cols-1 gap-3 pt-1">
+          {availableModels.map((m) => {
+            const isSelected = selectedModel === m.id;
+            return (
+              <div
+                key={m.id}
+                onClick={() => setSelectedModel && setSelectedModel(m.id)}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                  isSelected
+                    ? 'bg-rose-50/50 border-rose-200 ring-1 ring-rose-200'
+                    : 'bg-zinc-50/60 border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50'
+                }`}
+              >
+                <div className={`p-1 rounded-full mt-0.5 shrink-0 ${isSelected ? 'text-primary' : 'text-zinc-300'}`}>
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold font-display text-zinc-900">
+                      {m.name}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isSelected ? 'bg-rose-100 text-rose-800' : 'bg-zinc-200 text-zinc-700'
+                    }`}>
+                      {m.badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    {m.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -48,6 +48,14 @@ export default function App() {
   const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
 
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('canvas_prd_selected_model') || 'gemini-3.6-flash';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('canvas_prd_selected_model', selectedModel);
+  }, [selectedModel]);
+
   const [formState, setFormState] = useState<ProjectFormState>(DEFAULT_FORM_STATE);
   const [responseData, setResponseData] = useState<PRDGenerateResponse | null>(null);
 
@@ -230,7 +238,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'x-user-api-keys': JSON.stringify(userApiKeys)
         },
-        body: JSON.stringify({ form: formState, userApiKeys })
+        body: JSON.stringify({ form: formState, userApiKeys, selectedModel })
       });
 
       const data = await res.json();
@@ -313,7 +321,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'x-user-api-keys': JSON.stringify(userApiKeys)
         },
-        body: JSON.stringify({ form: finalForm, userApiKeys })
+        body: JSON.stringify({ form: finalForm, userApiKeys, selectedModel })
       });
 
       const data = await res.json();
@@ -548,6 +556,8 @@ export default function App() {
             <SettingsView
               userApiKeys={userApiKeys}
               setUserApiKeys={setUserApiKeys}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
               hasSystemApiKey={hasSystemApiKey}
               systemApiKeyCount={systemApiKeyCount}
               onResetProject={handleResetProject}
