@@ -1,5 +1,5 @@
-import { ProjectFormState } from '../types';
-import { DESIGN_MOODS, DESIGN_DENSITIES, WEBSITE_TYPE_TO_MOOD_MAP, DesignMoodRule, DesignDensityRule } from '../data/designMoods';
+import { ProjectFormState } from '../types.js';
+import { DESIGN_MOODS, DESIGN_DENSITIES, WEBSITE_TYPE_TO_MOOD_MAP, DesignMoodRule, DesignDensityRule } from '../data/designMoods.js';
 
 export function buildSystemPrompt(): string {
   return `You are an elite Senior Product Manager, Senior UX Strategist, Senior SEO Consultant, and Senior Information Architect.
