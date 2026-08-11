@@ -17,7 +17,6 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
   logoLink: '',
   referenceInformation: '',
   referenceLinks: [],
-  designMode: 'guided-full',
   designMoodId: 'auto',
   designDensity: 'auto',
   animationLevel: 'Medium',

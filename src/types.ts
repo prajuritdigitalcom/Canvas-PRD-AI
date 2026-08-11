@@ -71,8 +71,6 @@ export type ReasoningLevel = 'Basic' | 'Standard' | 'Advanced' | 'Maximum';
 
 export type GenerationMode = 'auto' | 'manual';
 
-export type DesignMode = 'freeform' | 'guided-tokens' | 'guided-full';
-
 export interface AIAnalysisResult {
   confidence: {
     businessAnalysis: number;
@@ -130,7 +128,6 @@ export interface ProjectFormState {
   referenceLinks: string[];
 
   // Design System (Mood x Density)
-  designMode: DesignMode;
   designMoodId: string;
   designDensity: 'minimal' | 'standard' | 'rich' | 'auto';
 

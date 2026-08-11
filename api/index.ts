@@ -44,6 +44,103 @@ const getCreativityInstruction = (sliderValue: number): string => {
   }
 };
 
+// Set output token limits based on aiMode
+const getMaxOutputTokens = (aiMode?: string): number => {
+  switch (aiMode) {
+    case 'Quick':
+      return 4096;
+    case 'Balanced':
+      return 8192;
+    case 'Professional':
+      return 8192;
+    case 'Enterprise':
+      return 8192;
+    default:
+      return 8192;
+  }
+};
+
+// Programmatic PRD validator to verify AI self-review assertions and calculate objective readiness
+interface PRDValidationResult {
+  passed: string[];
+  warnings: string[];
+  adjustedScore: number;
+}
+
+const FORBIDDEN_BRAND_NAMES = [
+  'linear', 'stripe', 'apple', 'aesop', 'gumroad', 'figma', 'dribbble', 
+  'headspace', 'duolingo', 'pitch.com', 'bentley motors', 'rolex'
+];
+
+function validatePRDContent(
+  markdownText: string,
+  aiReportedScore: number,
+  aiReportedReasons: { passed: string[]; warnings: string[] },
+  userBriefText: string = ''
+): PRDValidationResult {
+  const passed = [...(aiReportedReasons?.passed || [])];
+  const warnings = [...(aiReportedReasons?.warnings || [])];
+
+  // 1. Check for duplicate adjacent words (e.g. "Highlight Highlight")
+  const duplicateWordsMatch = markdownText.match(/\b(\w{3,})\s+\1\b/gi);
+  if (duplicateWordsMatch && duplicateWordsMatch.length > 0) {
+    const uniqueDups = Array.from(new Set(duplicateWordsMatch.map(w => w.toLowerCase())));
+    warnings.push(`Terdeteksi pengulangan kata berurutan: "${uniqueDups.slice(0, 3).join('", "')}".`);
+  } else {
+    passed.push('Bebas dari pengulangan kata berurutan.');
+  }
+
+  // 2. Check for internal reference brand name leaks
+  const foundBrands: string[] = [];
+  const lowerText = markdownText.toLowerCase();
+  const lowerUserBrief = userBriefText.toLowerCase();
+  for (const brand of FORBIDDEN_BRAND_NAMES) {
+    // Only flag if brand wasn't part of user's explicit brief
+    if (lowerText.includes(brand) && !lowerUserBrief.includes(brand)) {
+      foundBrands.push(brand);
+    }
+  }
+  if (foundBrands.length > 0) {
+    warnings.push(`Terdeteksi rujukan nama brand internal (${foundBrands.map(b => `"${b}"`).join(', ')}).`);
+  } else {
+    passed.push('Kerahasiaan referensi merek internal terjaga.');
+  }
+
+  // 3. Check for essential PRD section headers
+  const requiredHeaders = [
+    'Executive Summary',
+    'Business Overview',
+    'Color Palette',
+    'Typography',
+    'Page-by-Page & Section-by-Section Breakdown',
+    'Technical Notes for Gemini Canvas',
+    'Final Instruction For Gemini Canvas'
+  ];
+  let missingHeaders = 0;
+  for (const header of requiredHeaders) {
+    if (!markdownText.toLowerCase().includes(header.toLowerCase())) {
+      missingHeaders++;
+      warnings.push(`Bagian "${header}" tidak terdeteksi di dokumen.`);
+    }
+  }
+  if (missingHeaders === 0) {
+    passed.push('Seluruh struktur section wajib PRD terisi lengkap.');
+  }
+
+  // 4. Calculate objective score combining AI self-assessment with programmatic check
+  let validatorScore = 100;
+  validatorScore -= warnings.length * 5;
+  validatorScore = Math.max(50, Math.min(100, validatorScore));
+
+  const adjustedScore = Math.round((aiReportedScore * 0.6) + (validatorScore * 0.4));
+
+  return {
+    passed: Array.from(new Set(passed)),
+    warnings: Array.from(new Set(warnings)),
+    adjustedScore
+  };
+}
+
 // Map reasoning level to Google GenAI thinkingLevel enum
 const getThinkingConfig = (reasoningLevel?: string) => {
   let level = ThinkingLevel.LOW;
@@ -200,10 +297,7 @@ app.post('/api/generate-prd', async (req, res) => {
     }
 
     if (isSuspiciousPromptInjection(form.referenceInformation) || isSuspiciousPromptInjection(form.extraInstruction)) {
-      console.warn('[CANVAS-PRD-AI] [VALIDATION] Terdeteksi indikasi prompt-injection pada input user.');
-      return res.status(400).json({
-        error: 'Input Anda terdeteksi mengandung instruksi ilegal atau upaya manipulasi prompt. Mohon masukkan deskripsi bisnis yang valid.',
-      });
+      console.warn('[CANVAS-PRD-AI] [SECURITY-LOG] Terdeteksi frasa berpotensi prompt-injection pada input. System prompt Rule #9 akan mengisolasi input sebagai data mentah.');
     }
 
     // Build model chain for this request
@@ -281,8 +375,7 @@ app.post('/api/generate-prd', async (req, res) => {
         }
       });
 
-      // Resolve Design Mode / Mood / Density sebelum membangun prompt
-      const resolvedDesignMode: 'guided-full' = 'guided-full';
+      // Resolve Mood & Density sebelum membangun prompt
       let resolvedMoodId = form.designMoodId || 'auto';
       let resolvedDensityId = form.designDensity || 'auto';
 
@@ -301,19 +394,20 @@ app.post('/api/generate-prd', async (req, res) => {
       const creativityDirective = getCreativityInstruction(form.creativitySlider);
       const systemInstruction = buildSystemPrompt() + `\n\nDirectives for Creativity Level (${form.creativitySlider}%): ${creativityDirective}`;
       const userPrompt = buildUserPrompt(form, {
-        mode: resolvedDesignMode,
         moodId: resolvedMoodId,
         densityId: resolvedDensityId,
       });
       const thinkingConfig = getThinkingConfig(form.reasoningLevel);
+      const maxOutputTokens = getMaxOutputTokens(form.aiMode);
 
-      console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%...`);
+      console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%, maxTokens: ${maxOutputTokens}...`);
 
       const response = await ai.models.generateContent({
         model: modelName,
         contents: userPrompt,
         config: {
           systemInstruction,
+          maxOutputTokens,
           ...thinkingConfig,
           responseMimeType: 'application/json',
           responseSchema: {
@@ -401,12 +495,23 @@ app.post('/api/generate-prd', async (req, res) => {
       const wordCount = markdownText.split(/\s+/).filter(Boolean).length;
       const readingTime = Math.max(1, Math.round(wordCount / 200)); // ~200 words per minute
 
-      console.log(`[CANVAS-PRD-AI] [PARSE-SUKSES] Berhasil parsing JSON (${successfulModel}). Karakter Markdown: ${markdownText.length} | Jumlah kata: ${wordCount}`);
+      // Run programmatic PRD validator
+      const validation = validatePRDContent(
+        markdownText,
+        parsed.readyScore || 80,
+        parsed.scoreReasons || { passed: [], warnings: [] },
+        form.referenceInformation || ''
+      );
+
+      console.log(`[CANVAS-PRD-AI] [PARSE-SUKSES] Berhasil parsing JSON (${successfulModel}). Karakter Markdown: ${markdownText.length} | Jumlah kata: ${wordCount} | Skor Terverifikasi: ${validation.adjustedScore}`);
 
       return res.json({
         markdown: markdownText,
-        readyScore: parsed.readyScore || 70,
-        scoreReasons: parsed.scoreReasons || { passed: [], warnings: [] },
+        readyScore: validation.adjustedScore,
+        scoreReasons: {
+          passed: validation.passed,
+          warnings: validation.warnings
+        },
         wordCount,
         readingTime,
         usedKeyType: successfulKeyType,

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult, DesignMode } from '../types';
+import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult } from '../types';
 import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
@@ -65,12 +65,6 @@ const TYPOGRAPHY_PAIRINGS: TypographyPairing[] = [
   { id: 'playful-round', label: 'Playful & Round', heading: 'Quicksand', body: 'Nunito', bestFor: 'Casual, Community, Kids' },
   { id: 'editorial-serif', label: 'Editorial Serif', heading: 'Fraunces', body: 'Lora', bestFor: 'Blog, Portfolio, Personal Branding' },
   { id: 'auto', label: 'Auto (AI yang tentukan)', heading: 'Auto', body: 'Auto', bestFor: 'Biarkan AI memilih sesuai brand style & mood' }
-];
-
-const DESIGN_MODES: { id: DesignMode; emoji: string; label: string; description: string }[] = [
-  { id: 'freeform', emoji: '🔓', label: 'Freeform Total', description: 'AI bebas merancang semuanya dari nol, seperti biasa.' },
-  { id: 'guided-tokens', emoji: '🎯', label: 'Guided Tokens', description: 'Hanya angka tipografi & warna dikunci supaya konsisten, sisanya tetap bebas AI.' },
-  { id: 'guided-full', emoji: '🔒', label: 'Guided Full', description: 'Sistem desain lengkap dikunci untuk hasil paling terprediksi (cocok untuk brief klien).' },
 ];
 
 const ANALYSIS_STEPS = [
@@ -177,7 +171,6 @@ Layanan Utama kami:
 Alamat kami di Jl. Senopati No. 45, Jakarta Selatan. Kontak WA: 0812-3456-7890. Buka setiap hari jam 08.00 - 22.00.
 Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hangat (warm coffee vibes), ada galeri foto produk, daftar harga menu, form pemesanan coworking, FAQ lengkap, dan tombol kontak langsung ke WhatsApp admin.`,
       referenceLinks: ['https://instagram.com/kopinusantara_demo', 'https://kopinusantara-old.com'],
-      designMode: 'guided-full',
       designMoodId: 'auto',
       designDensity: 'auto',
       animationLevel: 'Premium',

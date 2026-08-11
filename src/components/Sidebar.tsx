@@ -38,7 +38,7 @@ export default function Sidebar({
               Canvas PRD <span className="text-primary font-extrabold">AI</span>
             </h1>
             <p className="hidden xl:block text-[10px] text-zinc-400 font-mono mt-1">
-              v1.0.0 • Senior Analyst
+              Single Page Website
             </p>
           </div>
         </div>
