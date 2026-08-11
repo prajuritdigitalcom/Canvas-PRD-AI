@@ -94,7 +94,6 @@ export interface AIAnalysisResult {
   mappedFields: {
     targetAudience: string[];
     goalWebsite: string[];
-    brandStyles: string[];
     designMoodId: string;
     animationLevel: AnimationLevel;
     illustrationStyle: IllustrationStyle;
@@ -136,8 +135,6 @@ export interface ProjectFormState {
   designDensity: 'minimal' | 'standard' | 'rich' | 'auto';
 
   // Design Preferences
-  brandStyles: string[];
-  customBrandStyle?: string;
   animationLevel: AnimationLevel;
   illustrationStyle: IllustrationStyle;
   preferredTone: PreferredTone;

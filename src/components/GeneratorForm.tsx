@@ -5,7 +5,7 @@ import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
   Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight,
-  AlignLeft, ShieldCheck, ChevronDown
+  AlignLeft, ShieldCheck, ChevronDown, ExternalLink, X
 } from 'lucide-react';
 
 interface GeneratorFormProps {
@@ -39,12 +39,6 @@ const GOAL_WEBSITES = [
   'Lead Generation', 'WhatsApp', 'Sales', 'Brand Awareness', 'Appointment', 
   'Booking', 'Download Catalog', 'Registration', 'Recruitment', 'Portfolio', 
   'Education', 'Information', 'Customer Support', 'Newsletter', 'Custom'
-];
-
-const BRAND_STYLES = [
-  'Modern', 'Minimalist', 'Corporate', 'Elegant', 'Luxury', 'Technology', 
-  'Creative', 'Friendly', 'Professional', 'Startup', 'Apple Style', 'Stripe Style', 
-  'Glassmorphism', 'Neumorphism', 'Material Design', 'Custom'
 ];
 
 const ANIMATION_LEVELS: AnimationLevel[] = ['None', 'Minimal', 'Medium', 'Premium', 'Luxury', 'WOW'];
@@ -97,6 +91,11 @@ const ANALYSIS_STEPS = [
   'Menyusun PRD final'
 ];
 
+function extractHex(token: string): string | null {
+  const match = token.match(/#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})/);
+  return match ? match[0] : null;
+}
+
 export default function GeneratorForm({
   formState,
   setFormState,
@@ -112,6 +111,7 @@ export default function GeneratorForm({
 }: GeneratorFormProps) {
   const [newLink, setNewLink] = useState('');
   const [fileError, setFileError] = useState('');
+  const [previewMoodId, setPreviewMoodId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
@@ -134,7 +134,6 @@ export default function GeneratorForm({
         generationMode: 'manual',
         targetAudience: prev.targetAudience.length > 0 ? prev.targetAudience : analysisResult.mappedFields.targetAudience,
         goalWebsite: prev.goalWebsite.length > 0 ? prev.goalWebsite : analysisResult.mappedFields.goalWebsite,
-        brandStyles: prev.brandStyles.length > 0 ? prev.brandStyles : analysisResult.mappedFields.brandStyles,
         designMoodId: prev.designMoodId !== 'auto' ? prev.designMoodId : analysisResult.mappedFields.designMoodId,
         animationLevel: prev.animationLevel !== 'Medium' ? prev.animationLevel : analysisResult.mappedFields.animationLevel,
         illustrationStyle: prev.illustrationStyle !== 'Icons Only' ? prev.illustrationStyle : analysisResult.mappedFields.illustrationStyle,
@@ -178,10 +177,9 @@ Layanan Utama kami:
 Alamat kami di Jl. Senopati No. 45, Jakarta Selatan. Kontak WA: 0812-3456-7890. Buka setiap hari jam 08.00 - 22.00.
 Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hangat (warm coffee vibes), ada galeri foto produk, daftar harga menu, form pemesanan coworking, FAQ lengkap, dan tombol kontak langsung ke WhatsApp admin.`,
       referenceLinks: ['https://instagram.com/kopinusantara_demo', 'https://kopinusantara-old.com'],
-      designMode: 'guided-tokens',
+      designMode: 'guided-full',
       designMoodId: 'auto',
       designDensity: 'auto',
-      brandStyles: ['Creative', 'Friendly', 'Professional', 'Minimalist'],
       animationLevel: 'Premium',
       illustrationStyle: 'Photography',
       preferredTone: 'Friendly',
@@ -201,8 +199,8 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
     });
   };
 
-  // Handle multi-select inputs (Target Audience, Goal Website, Brand Style)
-  const toggleArrayItem = (field: 'targetAudience' | 'goalWebsite' | 'brandStyles', item: string) => {
+  // Handle multi-select inputs (Target Audience, Goal Website)
+  const toggleArrayItem = (field: 'targetAudience' | 'goalWebsite', item: string) => {
     setFormState(prev => {
       const arr = prev[field];
       if (arr.includes(item)) {
@@ -378,7 +376,6 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                     generationMode: 'manual',
                     targetAudience: prev.targetAudience.length > 0 ? prev.targetAudience : analysisResult.mappedFields.targetAudience,
                     goalWebsite: prev.goalWebsite.length > 0 ? prev.goalWebsite : analysisResult.mappedFields.goalWebsite,
-                    brandStyles: prev.brandStyles.length > 0 ? prev.brandStyles : analysisResult.mappedFields.brandStyles,
                     designMoodId: prev.designMoodId !== 'auto' ? prev.designMoodId : analysisResult.mappedFields.designMoodId,
                     animationLevel: prev.animationLevel !== 'Medium' ? prev.animationLevel : analysisResult.mappedFields.animationLevel,
                     illustrationStyle: prev.illustrationStyle !== 'Icons Only' ? prev.illustrationStyle : analysisResult.mappedFields.illustrationStyle,
@@ -722,206 +719,94 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                 </h3>
               </div>
 
-              {/* Design Mode Toggle — 3 pilihan setara */}
               <div className="space-y-3">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                  Design Mode
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {DESIGN_MODES.map((mode) => {
-                    const isSelected = formState.designMode === mode.id;
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Pilih 1 tema yang paling sesuai, atau biarkan AI merekomendasikan otomatis.
+                </p>
+
+                {/* Grid Kartu Tema — 1 kolom mobile, 2 tablet, 3 desktop */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {/* Kartu Auto — Rekomendasi AI */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setFormState(prev => ({ ...prev, designMoodId: 'auto' }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setFormState(prev => ({ ...prev, designMoodId: 'auto' })); } }}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                      formState.designMoodId === 'auto'
+                        ? 'bg-rose-50 dark:bg-rose-950/20 border-primary ring-1 ring-primary/20'
+                        : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-sm font-bold text-primary">✨ Auto — Rekomendasi AI</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                        AI otomatis pilih tema paling cocok berdasarkan Tipe Website & Brief Anda
+                      </p>
+                    </div>
+                    <div className="text-[11px] font-medium text-rose-500 dark:text-rose-400 pt-2 border-t border-zinc-200/50 dark:border-zinc-800">
+                      • Terpilih Otomatis
+                    </div>
+                  </div>
+
+                  {/* 8 Kartu Tema */}
+                  {DESIGN_MOODS.map((mood) => {
+                    const isSelected = formState.designMoodId === mood.id;
+                    const swatches = mood.rules.colorContrastPairs
+                      .map(p => extractHex(p.backgroundToken))
+                      .filter((hex): hex is string => hex !== null);
+
                     return (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => setFormState(prev => ({ ...prev, designMode: mode.id }))}
-                        className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
+                      <div
+                        key={mood.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setFormState(prev => ({ ...prev, designMoodId: mood.id }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setFormState(prev => ({ ...prev, designMoodId: mood.id })); } }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
                           isSelected
-                            ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
-                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
+                            ? 'bg-rose-50 dark:bg-rose-950/20 border-primary ring-1 ring-primary/20'
+                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span>{mode.emoji}</span>
-                          <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>
-                            {mode.label}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>
+                              {mood.name}
+                            </span>
+                            {/* Swatch dots */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {swatches.map((hex, idx) => (
+                                <span
+                                  key={idx}
+                                  className="w-3.5 h-3.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs"
+                                  style={{ backgroundColor: hex }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                            {mood.tagline}
+                          </p>
                         </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{mode.description}</p>
-                      </button>
+
+                        <div className="pt-2 border-t border-zinc-200/50 dark:border-zinc-800/80 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewMoodId(mood.id);
+                            }}
+                            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 cursor-pointer py-1 px-2.5 rounded-lg bg-rose-100/50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 transition-colors"
+                          >
+                            <span>🔍 Lihat contoh website</span>
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
-                </div>
-              </div>
-
-              {/* Design Mood Selector — muncul jika mode bukan Freeform */}
-              {formState.designMode !== 'freeform' && (
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Design Mood
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setFormState(prev => ({ ...prev, designMoodId: 'auto' }))}
-                      className={`text-left p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                        formState.designMoodId === 'auto'
-                          ? 'bg-rose-50 dark:bg-rose-950/20 border-primary text-primary'
-                          : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
-                      }`}
-                    >
-                      ✨ Auto (AI Rekomendasi berdasarkan Website Type / Brief)
-                    </button>
-                    {DESIGN_MOODS.map((mood) => {
-                      const isSelected = formState.designMoodId === mood.id;
-                      const swatch = mood.rules.colorContrastPairs[0]?.backgroundToken;
-                      return (
-                        <button
-                          key={mood.id}
-                          type="button"
-                          onClick={() => setFormState(prev => ({ ...prev, designMoodId: mood.id }))}
-                          className={`text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${
-                            isSelected
-                              ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
-                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
-                          }`}
-                        >
-                          {swatch && (
-                            <span className="w-4 h-4 rounded-full border border-zinc-300 shrink-0" style={{ backgroundColor: swatch }} />
-                          )}
-                          <span>
-                            <span className={`block text-xs font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>{mood.name}</span>
-                            <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">{mood.tagline}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Density Selector — muncul hanya di mode Guided Full */}
-              {formState.designMode === 'guided-full' && (
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Density
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setFormState(prev => ({ ...prev, designDensity: 'auto' }))}
-                      className={`text-center p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                        formState.designDensity === 'auto'
-                          ? 'bg-rose-50 dark:bg-rose-950/20 border-primary text-primary'
-                          : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
-                      }`}
-                    >
-                      ✨ Auto
-                    </button>
-                    {DESIGN_DENSITIES.map((density) => {
-                      const isSelected = formState.designDensity === density.id;
-                      return (
-                        <button
-                          key={density.id}
-                          type="button"
-                          onClick={() => setFormState(prev => ({ ...prev, designDensity: density.id }))}
-                          className={`text-center p-3 rounded-xl border transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-rose-50 dark:bg-rose-950/20 border-primary'
-                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
-                          }`}
-                        >
-                          <span className={`block text-xs font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>{density.name}</span>
-                          <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">{density.tagline}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Brand Style Badges Selection */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                  Brand Style Preferences (Penekanan Tambahan, opsional)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {BRAND_STYLES.map((style) => {
-                    const isSelected = formState.brandStyles.includes(style);
-                    return (
-                      <button
-                        key={style}
-                        type="button"
-                        onClick={() => toggleArrayItem('brandStyles', style)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
-                          isSelected
-                            ? 'bg-rose-50 dark:bg-rose-950/20 text-primary border-primary'
-                            : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100'
-                        }`}
-                      >
-                        {style}
-                      </button>
-                    );
-                  })}
-                </div>
-                {formState.brandStyles.includes('Custom') && (
-                  <input
-                    type="text"
-                    value={formState.customBrandStyle || ''}
-                    onChange={e => setFormState(prev => ({ ...prev, customBrandStyle: e.target.value }))}
-                    placeholder="Tuliskan preferensi gaya desain kustom lainnya..."
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100 mt-2"
-                  />
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Animation Level */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Animation Level
-                  </label>
-                  <select
-                    value={formState.animationLevel}
-                    onChange={e => setFormState(prev => ({ ...prev, animationLevel: e.target.value as AnimationLevel }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    {ANIMATION_LEVELS.map(anim => (
-                      <option key={anim} value={anim}>{anim}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Illustration Style */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Illustration Style
-                  </label>
-                  <select
-                    value={formState.illustrationStyle}
-                    onChange={e => setFormState(prev => ({ ...prev, illustrationStyle: e.target.value as IllustrationStyle }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    {ILLUSTRATION_STYLES.map(style => (
-                      <option key={style} value={style}>{style}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Preferred Tone */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Preferred Copywriting Tone
-                  </label>
-                  <select
-                    value={formState.preferredTone}
-                    onChange={e => setFormState(prev => ({ ...prev, preferredTone: e.target.value as PreferredTone }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    {PREFERRED_TONES.map(tone => (
-                      <option key={tone} value={tone}>{tone}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
             </div>
@@ -1263,6 +1148,56 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Tingkat Animasi */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Tingkat Animasi
+                  </label>
+                  <select
+                    value={formState.animationLevel}
+                    onChange={e => setFormState(prev => ({ ...prev, animationLevel: e.target.value as AnimationLevel }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    {ANIMATION_LEVELS.map(anim => (
+                      <option key={anim} value={anim}>{anim}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Gaya Ilustrasi */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Gaya Ilustrasi
+                  </label>
+                  <select
+                    value={formState.illustrationStyle}
+                    onChange={e => setFormState(prev => ({ ...prev, illustrationStyle: e.target.value as IllustrationStyle }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    {ILLUSTRATION_STYLES.map(style => (
+                      <option key={style} value={style}>{style}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Gaya Copywriting */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Gaya Copywriting
+                  </label>
+                  <select
+                    value={formState.preferredTone}
+                    onChange={e => setFormState(prev => ({ ...prev, preferredTone: e.target.value as PreferredTone }))}
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
+                  >
+                    {PREFERRED_TONES.map(tone => (
+                      <option key={tone} value={tone}>{tone}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Card 7: Extra Instruction */}
@@ -1534,6 +1469,122 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
           ) : null}
         </div>
       </div>
+
+      {/* Modal Preview Tema */}
+      {(() => {
+        const previewMood = DESIGN_MOODS.find(m => m.id === previewMoodId);
+        if (!previewMood) return null;
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            onClick={() => setPreviewMoodId(null)}
+          >
+            <div
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-4 bg-zinc-50/50 dark:bg-zinc-950/50">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-bold text-lg text-zinc-900 dark:text-white">
+                      {previewMood.name}
+                    </h3>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-semibold">
+                      {previewMood.tagline}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                    <strong>Gaya Visual:</strong> {previewMood.rules.layoutPattern}. {previewMood.rules.colorApproach}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMoodId(null)}
+                  className="p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content - Examples */}
+              <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                    Contoh Website Referensi Gaya ({previewMood.referenceExamples.length})
+                  </h4>
+                  <span className="text-[11px] text-zinc-400">Klik kartu untuk membuka situs asli</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {previewMood.referenceExamples.map((ex, idx) => {
+                    let hostname = '';
+                    try {
+                      hostname = new URL(ex.url).hostname;
+                    } catch {
+                      hostname = ex.url;
+                    }
+                    const faviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+
+                    return (
+                      <a
+                        key={idx}
+                        href={ex.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 hover:bg-rose-50/60 dark:hover:bg-rose-950/30 hover:border-primary/40 transition-all flex flex-col justify-between gap-2.5 group cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={faviconUrl}
+                              alt={ex.name}
+                              className="w-5 h-5 rounded-sm shrink-0 object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                            <span className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-primary transition-colors">
+                              {ex.name}
+                            </span>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-zinc-400 group-hover:text-primary transition-colors shrink-0" />
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                          {ex.note}
+                        </p>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMoodId(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormState(prev => ({ ...prev, designMoodId: previewMood.id }));
+                    setPreviewMoodId(null);
+                  }}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-rose-600 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  Pilih Tema Ini
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

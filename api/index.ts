@@ -282,19 +282,20 @@ app.post('/api/generate-prd', async (req, res) => {
       });
 
       // Resolve Design Mode / Mood / Density sebelum membangun prompt
-      const resolvedDesignMode: 'freeform' | 'guided-tokens' | 'guided-full' = form.designMode || 'guided-tokens';
+      const resolvedDesignMode: 'guided-full' = 'guided-full';
       let resolvedMoodId = form.designMoodId || 'auto';
       let resolvedDensityId = form.designDensity || 'auto';
 
-      if (resolvedDesignMode !== 'freeform' && resolvedMoodId === 'auto') {
+      if (resolvedMoodId === 'auto') {
         const mapped = WEBSITE_TYPE_TO_MOOD_MAP[form.websiteType];
         resolvedMoodId = mapped?.moodId || DESIGN_MOODS[0].id;
         if (resolvedDensityId === 'auto') {
           resolvedDensityId = mapped?.density || 'standard';
         }
       }
-      if (resolvedDesignMode === 'guided-full' && resolvedDensityId === 'auto') {
-        resolvedDensityId = 'standard';
+      if (resolvedDensityId === 'auto') {
+        const moodForDensity = DESIGN_MOODS.find(m => m.id === resolvedMoodId);
+        resolvedDensityId = moodForDensity?.recommendedDensity || 'standard';
       }
 
       const creativityDirective = getCreativityInstruction(form.creativitySlider);
@@ -552,7 +553,6 @@ ${(form.referenceLinks || []).map((l: string) => `- ${l}`).join('\n') || 'None'}
 Based on the brief, determine:
 1. Target Audience: Choose 2-5 relevant categories from: "Business Owner", "Corporate", "Investor", "Parents", "Students", "Doctors", "Distributor", "Retail", "Government", "Public", "Custom".
 2. Goal Website: Choose 1-3 relevant options from: "Lead Generation", "WhatsApp", "Sales", "Brand Awareness", "Appointment", "Booking", "Download Catalog", "Registration", "Recruitment", "Portfolio", "Education", "Information", "Customer Support", "Newsletter", "Custom".
-3. Brand Styles: Choose 2-4 relevant styles from: "Modern", "Minimalist", "Corporate", "Elegant", "Luxury", "Technology", "Creative", "Friendly", "Professional", "Startup", "Apple Style", "Stripe Style", "Glassmorphism", "Neumorphism", "Material Design", "Custom".
 4. Visual Style & Color Palette: Suggest Primary, Secondary, and Accent Hex colors matching the business vibe.
 5. Typography: Suggest a "headingFont" and a "bodyFont" (can be the same or different) from: "Inter", "Poppins", "DM Sans", "Sora", "Playfair Display", "Cormorant Garamond", "Unbounded", "Manrope", "Space Grotesk", "JetBrains Mono", "Work Sans", "Quicksand", "Nunito", "Fraunces", "Lora", "Auto". Prefer serif fonts (Playfair Display, Cormorant Garamond, Fraunces, Lora) for Elegant/Luxury/Editorial brand styles, display/mono fonts (Unbounded, Space Grotesk, JetBrains Mono) for Technology/Creative, and rounded fonts (Quicksand, Nunito) for Friendly/Casual.
 6. Animation Level: Suggest one from "None", "Minimal", "Medium", "Premium", "Luxury", "WOW".
@@ -604,7 +604,6 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                 properties: {
                   targetAudience: { type: Type.ARRAY, items: { type: Type.STRING } },
                   goalWebsite: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  brandStyles: { type: Type.ARRAY, items: { type: Type.STRING } },
                   designMoodId: { type: Type.STRING, description: `Salah satu dari: ${DESIGN_MOODS.map(m => m.id).join(', ')}. Pilih berdasarkan konteks brief spesifik (mis. brief menyebut "butuh kesan mewah" → boleh override default berbasis WebsiteType).` },
                   animationLevel: { type: Type.STRING, description: '"None", "Minimal", "Medium", "Premium", "Luxury", "WOW"' },
                   illustrationStyle: { type: Type.STRING, description: '"Flat", "3D", "Photography", "AI Generated", "Icons Only", "Corporate", "Minimal"' },
@@ -622,7 +621,7 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                   reasoningLevel: { type: Type.STRING, description: '"Basic", "Standard", "Advanced", "Maximum"' }
                 },
                 required: [
-                  'targetAudience', 'goalWebsite', 'brandStyles', 'designMoodId', 'animationLevel',
+                  'targetAudience', 'goalWebsite', 'designMoodId', 'animationLevel',
                   'illustrationStyle', 'preferredTone', 'primaryColor', 'secondaryColor',
                   'accentColor', 'autoGenerateColors', 'headingFont', 'bodyFont', 'metaTitle', 'metaDescription',
                   'aiMode', 'creativitySlider', 'reasoningLevel'

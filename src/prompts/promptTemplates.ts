@@ -52,6 +52,11 @@ Mood terpilih: **${mood.name}** — ${mood.tagline}
 ${mood.rules.colorContrastPairs.map(p => `- ${p.backgroundToken} → ${p.textToken} (${p.usage})`).join('\n')}`;
 }
 
+function renderReferenceExamplesBlock(mood: DesignMoodRule): string {
+  if (!mood.referenceExamples || !mood.referenceExamples.length) return '';
+  return `\n\n**Referensi Gaya Internal (hanya untuk membantu Anda memahami arah visual — DILARANG disebut/dikutip di output PRD manapun):**\n${mood.referenceExamples.map(ex => `- ${ex.name}: ${ex.note}`).join('\n')}`;
+}
+
 function renderFullDesignSystemBlock(mood: DesignMoodRule, density: DesignDensityRule): string {
   const tokensBlock = renderTokensOnlyBlock(mood).replace(
     '## FONDASI TOKEN TERKUNCI (Tipografi & Kontras Warna) — sisanya bebas AI berimprovisasi',
@@ -73,7 +78,7 @@ function renderFullDesignSystemBlock(mood: DesignMoodRule, density: DesignDensit
 - Item per grid row: ${density.itemsPerGridRow}
 - Animation Level: ${density.animationLevel}
 - Kepadatan Imagery: ${density.imageryDensity}
-- Kepadatan Copy: ${density.copyDensity}`;
+- Kepadatan Copy: ${density.copyDensity}${renderReferenceExamplesBlock(mood)}`;
 }
 
 function formatDesignSystemBlock(
@@ -99,7 +104,6 @@ export function buildUserPrompt(
   form: ProjectFormState,
   resolvedDesign: { mode: 'freeform' | 'guided-tokens' | 'guided-full'; moodId: string; densityId: string }
 ): string {
-  const brandStylesStr = form.brandStyles.length > 0 ? form.brandStyles.join(', ') : 'Not specified';
   const targetAudienceStr = form.targetAudience.length > 0 ? form.targetAudience.join(', ') : 'Not specified';
   const goalWebsiteStr = form.goalWebsite.length > 0 ? form.goalWebsite.join(', ') : 'Not specified';
   const mandatorySeoStandards = 'Semantic HTML5, Schema.org/JSON-LD structured data, Fast Loading & performance optimization, SEO-friendly URL slugs, correct Heading Structure (H1-H6), Internal & External CTA linking, Open Graph (OG) Tags, WCAG Accessibility compliance, descriptive Image Alt Text, Breadcrumb navigation, Local SEO signals, and Structured Content formatting';
@@ -136,7 +140,6 @@ ${designModeLabel}
 ${designSystemBlock ? '\n' + designSystemBlock : '(Tidak ada data desain terkunci — Anda bebas merancang skala tipografi dan palet warna dari nol, mengikuti brief bisnis.)'}
 
 ## DESIGN PREFERENCES
-- **Brand Style:** ${brandStylesStr} ${form.customBrandStyle ? `(${form.customBrandStyle})` : ''}
 - **Animation Level:** ${form.animationLevel}
 - **Illustration Style:** ${form.illustrationStyle}
 - **Preferred Tone:** ${form.preferredTone}
