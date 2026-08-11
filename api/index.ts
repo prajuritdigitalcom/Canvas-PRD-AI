@@ -48,15 +48,15 @@ const getCreativityInstruction = (sliderValue: number): string => {
 const getMaxOutputTokens = (aiMode?: string): number => {
   switch (aiMode) {
     case 'Quick':
-      return 4096;
+      return 12000;
     case 'Balanced':
-      return 8192;
+      return 24000;
     case 'Professional':
-      return 8192;
+      return 40000;
     case 'Enterprise':
-      return 8192;
+      return 60000;
     default:
-      return 8192;
+      return 24000;
   }
 };
 
@@ -154,6 +154,20 @@ const getThinkingConfig = (reasoningLevel?: string) => {
     level = ThinkingLevel.HIGH;
   }
   return { thinkingConfig: { thinkingLevel: level } };
+};
+
+// Lower thinking level helper for token safety retries
+const getLowerThinkingConfig = (reasoningLevel?: string, attemptIndex: number = 0) => {
+  if (attemptIndex === 0) {
+    return getThinkingConfig(reasoningLevel);
+  } else if (attemptIndex === 1) {
+    if (reasoningLevel === 'Maximum') return getThinkingConfig('Advanced');
+    if (reasoningLevel === 'Advanced') return getThinkingConfig('Standard');
+    if (reasoningLevel === 'Standard') return getThinkingConfig('Basic');
+    return getThinkingConfig('Basic');
+  } else {
+    return { thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } };
+  }
 };
 
 // ================== Prompt Injection Guard & Input Length Limit ==================
@@ -397,53 +411,83 @@ app.post('/api/generate-prd', async (req, res) => {
         moodId: resolvedMoodId,
         densityId: resolvedDensityId,
       });
-      const thinkingConfig = getThinkingConfig(form.reasoningLevel);
-      const maxOutputTokens = getMaxOutputTokens(form.aiMode);
 
-      console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%, maxTokens: ${maxOutputTokens}...`);
+      const baseMaxTokens = getMaxOutputTokens(form.aiMode);
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          maxOutputTokens,
-          ...thinkingConfig,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              markdown: {
-                type: Type.STRING,
-                description: 'Dokumen PRD lengkap dalam format Markdown.'
-              },
-              readyScore: {
-                type: Type.INTEGER,
-                description: 'Skor kesiapan Canvas (0-100) berdasarkan kelengkapan parameter input.'
-              },
-              scoreReasons: {
-                type: Type.OBJECT,
-                properties: {
-                  passed: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: 'Daftar parameter atau kelengkapan yang sudah terpenuhi.'
-                  },
-                  warnings: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: 'Daftar hal-hal yang kurang atau disarankan untuk dilengkapi.'
-                  }
-                },
-                required: ['passed', 'warnings']
-              }
-            },
-            required: ['markdown', 'readyScore', 'scoreReasons']
-          }
+      // Adaptive token-safety attempt configurations
+      const tokenSafetyAttempts = [
+        { thinkingCfg: getThinkingConfig(form.reasoningLevel), maxTokens: baseMaxTokens, label: 'Standard' },
+        { thinkingCfg: getLowerThinkingConfig(form.reasoningLevel, 1), maxTokens: Math.min(65536, baseMaxTokens + 8000), label: 'Lower Thinking + Extended Tokens' },
+        { thinkingCfg: getLowerThinkingConfig(form.reasoningLevel, 2), maxTokens: 65536, label: 'Minimal Thinking + Max Tokens' }
+      ];
+
+      let lastResponse: any = null;
+
+      for (let attemptIdx = 0; attemptIdx < tokenSafetyAttempts.length; attemptIdx++) {
+        const attemptCfg = tokenSafetyAttempts[attemptIdx];
+        if (attemptIdx > 0) {
+          console.warn(`[CANVAS-PRD-AI] [TOKEN-SAFETY-RETRY] Percobaan #${attemptIdx + 1} (${attemptCfg.label}) dengan maxTokens: ${attemptCfg.maxTokens}...`);
+        } else {
+          console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%, maxTokens: ${attemptCfg.maxTokens}...`);
         }
-      });
 
-      return response;
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: userPrompt,
+          config: {
+            systemInstruction,
+            maxOutputTokens: attemptCfg.maxTokens,
+            ...attemptCfg.thinkingCfg,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                markdown: {
+                  type: Type.STRING,
+                  description: 'Dokumen PRD lengkap dalam format Markdown.'
+                },
+                readyScore: {
+                  type: Type.INTEGER,
+                  description: 'Skor kesiapan Canvas (0-100) berdasarkan kelengkapan parameter input.'
+                },
+                scoreReasons: {
+                  type: Type.OBJECT,
+                  properties: {
+                    passed: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: 'Daftar parameter atau kelengkapan yang sudah terpenuhi.'
+                    },
+                    warnings: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: 'Daftar hal-hal yang kurang atau disarankan untuk dilengkapi.'
+                    }
+                  },
+                  required: ['passed', 'warnings']
+                }
+              },
+              required: ['markdown', 'readyScore', 'scoreReasons']
+            }
+          }
+        });
+
+        lastResponse = response;
+        const finishReason = response?.candidates?.[0]?.finishReason;
+
+        if (finishReason === 'MAX_TOKENS') {
+          console.warn(`[CANVAS-PRD-AI] [TRUNCATED] Respons terpotong karena batas token (attempt #${attemptIdx + 1}, finishReason: MAX_TOKENS).`);
+          if (attemptIdx < tokenSafetyAttempts.length - 1) {
+            continue; // Retry with next token-safety configuration
+          }
+          throw new Error('TRUNCATED_MAX_TOKENS_EXHAUSTED');
+        }
+
+        // Successfully generated without hitting token limit
+        return response;
+      }
+
+      return lastResponse;
     };
 
     let responseText = '';
@@ -522,7 +566,17 @@ app.post('/api/generate-prd', async (req, res) => {
       console.error('❌ [CANVAS-PRD-AI] [PARSE-FAIL] Gagal mem-parse JSON hasil AI:', parseErr);
       console.log('[CANVAS-PRD-AI] [RAW-RESPONSE] Teks mentah respons Gemini yang gagal di-parse:\n', responseText);
       
-      // Fallback: if not valid JSON, output it raw as markdown
+      const trimmedText = responseText.trim();
+      const looksLikeTruncatedJson = (trimmedText.startsWith('{') || trimmedText.includes('"markdown":'));
+
+      if (looksLikeTruncatedJson) {
+        console.error('❌ [CANVAS-PRD-AI] [PARSE-FAIL-TRUNCATED] Respons AI terindikasi sebagai JSON terpotong. Menolak pengiriman sintaks mentah.');
+        return res.status(502).json({
+          error: 'Dokumen PRD gagal digenerasi secara utuh karena keterbatasan panjang respons dari model. Silakan coba lagi, atau turunkan Reasoning Level / gunakan mode yang lebih ringkas.'
+        });
+      }
+
+      // Fallback: if not JSON structure at all (e.g. raw markdown text output without JSON wrapper)
       const wordCount = responseText.split(/\s+/).filter(Boolean).length;
       const readingTime = Math.max(1, Math.round(wordCount / 200));
       return res.json({

@@ -1,5 +1,6 @@
 export type WebsiteType =
   | 'Company Profile'
+  | 'E-Commerce'
   | 'Landing Page'
   | 'Agency'
   | 'Portfolio'

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import mammoth from 'mammoth';
 import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult } from '../types';
 import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
+import { DEMO_BRIEFS } from '../data/demoBriefs';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
   Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight,
@@ -23,7 +24,7 @@ interface GeneratorFormProps {
 }
 
 const WEBSITE_TYPES: WebsiteType[] = [
-  'Company Profile', 'Landing Page', 'Agency', 'Portfolio', 'Startup', 'SaaS', 
+  'Company Profile', 'E-Commerce', 'Landing Page', 'Agency', 'Portfolio', 'Startup', 'SaaS', 
   'Restaurant', 'Law Firm', 'Medical', 'Education', 'Travel', 'Construction', 
   'Manufacturing', 'UMKM', 'Government', 'NGO', 'Blog', 'Marketplace', 
   'Personal Branding', 'Event', 'Wedding', 'Real Estate', 'Finance', 'Insurance', 
@@ -111,10 +112,16 @@ export default function GeneratorForm({
   const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [isDemoDropdownOpen, setIsDemoDropdownOpen] = useState(false);
+  const demoDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (fontDropdownRef.current && !fontDropdownRef.current.contains(event.target as Node)) {
         setIsFontDropdownOpen(false);
+      }
+      if (demoDropdownRef.current && !demoDropdownRef.current.contains(event.target as Node)) {
+        setIsDemoDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -147,49 +154,12 @@ export default function GeneratorForm({
     }
   };
 
-  // Load a demo project brief
-  const handleLoadDemo = () => {
-    setFormState({
-      projectName: 'Kopi Nusantara Café',
-      websiteType: 'Restaurant',
-      targetAudience: ['Business Owner', 'Public', 'Students'],
-      goalWebsite: ['Lead Generation', 'WhatsApp', 'Booking'],
-      projectLanguage: 'Indonesia',
-      referenceInformation: `Kami adalah Kopi Nusantara, sebuah kedai kopi yang berfokus pada biji kopi asli Indonesia berkualitas tinggi (Gayo, Toraja, Kintamani).
-Kami ingin membuat website baru karena website lama kami sudah sangat ketinggalan zaman dan tidak memiliki sistem reservasi.
-
-Kelebihan kami:
-1. Hanya menyajikan kopi single-origin 100% asli Indonesia yang di-roast sendiri.
-2. Memiliki area coworking space yang tenang dengan Wi-Fi super cepat 100 Mbps.
-3. Menyediakan paket meeting room sewa murah untuk startup dan mahasiswa.
-
-Layanan Utama kami:
-- Dine-in & Takeaway kopi premium
-- Sewa Ruang Meeting & Coworking space (harian/bulanan)
-- Catering kopi untuk event pernikahan & corporate gathering
-
-Alamat kami di Jl. Senopati No. 45, Jakarta Selatan. Kontak WA: 0812-3456-7890. Buka setiap hari jam 08.00 - 22.00.
-Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hangat (warm coffee vibes), ada galeri foto produk, daftar harga menu, form pemesanan coworking, FAQ lengkap, dan tombol kontak langsung ke WhatsApp admin.`,
-      referenceLinks: ['https://instagram.com/kopinusantara_demo', 'https://kopinusantara-old.com'],
-      designMoodId: 'auto',
-      designDensity: 'auto',
-      animationLevel: 'Premium',
-      illustrationStyle: 'Photography',
-      preferredTone: 'Friendly',
-      primaryColor: '#c27d38', // Coffee Brown
-      secondaryColor: '#1d2a1c', // Forest Dark Green
-      accentColor: '#f7f4eb', // Cream Warm White
-      autoGenerateColors: false,
-      headingFont: 'Poppins',
-      bodyFont: 'DM Sans',
-      metaTitle: 'Kopi Nusantara Café — Kedai Kopi Single-Origin & Coworking Space Jakarta Selatan',
-      metaDescription: 'Nikmati kopi single-origin asli Indonesia (Gayo, Toraja, Kintamani) di Kopi Nusantara. Tersedia coworking space, meeting room, dan katering untuk event Anda.',
-      gscVerificationTag: '',
-      aiMode: 'Professional',
-      creativitySlider: 70,
-      reasoningLevel: 'Standard',
-      extraInstruction: 'Gunakan struktur copywriting model AIDA (Attention, Interest, Desire, Action) pada halaman utama. Tombol CTA utama harus menonjol dengan efek glow hangat.'
-    });
+  // Load a demo project brief by ID
+  const handleLoadDemo = (demoId?: string) => {
+    const target = DEMO_BRIEFS.find(d => d.id === (demoId || 'company-profile')) || DEMO_BRIEFS[0];
+    if (target) {
+      setFormState(target.data);
+    }
   };
 
   // Handle multi-select inputs (Target Audience, Goal Website)
@@ -302,25 +272,76 @@ Tolong buatkan susunan halaman landing page yang menarik, modern, bernuansa hang
         <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between gap-4 animate-fade-in">
           <div className="flex items-start gap-3.5">
             <div className="p-2 bg-rose-50 dark:bg-rose-950/20 text-primary rounded-xl shrink-0">
-              <Lightbulb className="w-5 h-5 animate-bounce" />
+              <Lightbulb className="w-5 h-5 animate-bounce text-primary" />
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-display font-bold text-zinc-900 dark:text-white">
                 Coba Dengan Contoh Brief Proyek
               </h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
-                Klik untuk mengisi form dengan draf contoh kedai kopi Nusantara secara otomatis.
+                Klik untuk mengisi form dengan draf contoh sesuai kategori bisnis Anda: Company Profile, E-Commerce, atau SaaS.
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 sm:border-0 sm:pt-0 sm:justify-end">
-            <button
-              type="button"
-              onClick={handleLoadDemo}
-              className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:text-primary dark:hover:text-primary font-bold text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm cursor-pointer hover:border-rose-200 dark:hover:border-rose-900/40 transition-all shrink-0"
-            >
-              Contoh Brief
-            </button>
+
+          <div className="flex flex-wrap gap-2 shrink-0 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 sm:border-0 sm:pt-0 sm:justify-end relative" ref={demoDropdownRef}>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDemoDropdownOpen(!isDemoDropdownOpen)}
+                className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:text-primary dark:hover:text-primary font-bold text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm cursor-pointer hover:border-rose-200 dark:hover:border-rose-900/40 transition-all flex items-center gap-2 shrink-0"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pilih Brief</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isDemoDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDemoDropdownOpen && (
+                <div className="absolute right-0 sm:right-0 left-0 sm:left-auto mt-2 w-80 sm:w-96 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800/60">
+                    <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
+                      Pilih Kategori Contoh Brief:
+                    </p>
+                  </div>
+                  {DEMO_BRIEFS.map((brief) => {
+                    const isSelected = formState.projectName === brief.data.projectName;
+                    return (
+                      <button
+                        key={brief.id}
+                        type="button"
+                        onClick={() => {
+                          handleLoadDemo(brief.id);
+                          setIsDemoDropdownOpen(false);
+                        }}
+                        className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer flex flex-col gap-1 border ${
+                          isSelected 
+                            ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60' 
+                            : 'bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:border-zinc-200 dark:hover:border-zinc-700/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${brief.badgeColor}`}>
+                            {brief.category}
+                          </span>
+                          {isSelected && (
+                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Terpasang
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 mt-0.5">
+                          {brief.title}
+                        </div>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                          {brief.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {(formState.projectName.trim() !== '' || formState.referenceInformation.trim() !== '' || (formState.logoLink && formState.logoLink.trim() !== '')) && (
               <button
                 type="button"
