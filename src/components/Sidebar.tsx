@@ -1,12 +1,10 @@
 import React from 'react';
-import { Sparkles, FileText, Settings, HelpCircle, Database, CheckCircle } from 'lucide-react';
+import { Sparkles, FileText, Settings, CheckCircle } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   hasUserApiKey: boolean;
-  hasSystemApiKey: boolean;
-  systemApiKeyCount?: number;
   isDraftSaved: boolean;
 }
 
@@ -14,8 +12,6 @@ export default function Sidebar({
   activeTab,
   setActiveTab,
   hasUserApiKey,
-  hasSystemApiKey,
-  systemApiKeyCount = 0,
   isDraftSaved,
 }: SidebarProps) {
   const menuItems = [
@@ -107,21 +103,11 @@ export default function Sidebar({
           </span>
           
           <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-zinc-500">Server</span>
+            <span className="text-zinc-500">API Pool</span>
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${hasSystemApiKey ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-              <span className={hasSystemApiKey ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
-                {hasSystemApiKey ? (systemApiKeyCount > 0 ? `Aktif (${systemApiKeyCount})` : 'Aktif') : 'Kosong'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-zinc-500">Backup</span>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${hasUserApiKey ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
-              <span className={hasUserApiKey ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
-                {hasUserApiKey ? 'Tersedia' : 'Kosong'}
+              <div className={`w-2 h-2 rounded-full ${hasUserApiKey ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <span className={hasUserApiKey ? 'text-zinc-700 font-bold' : 'text-rose-500 font-bold'}>
+                {hasUserApiKey ? 'Siap' : 'Belum Dikonfigurasi'}
               </span>
             </div>
           </div>

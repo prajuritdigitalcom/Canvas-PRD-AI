@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { Settings, Eye, EyeOff, ShieldCheck, Key, AlertTriangle, Trash2, Plus, X, Cpu, CheckCircle2 } from 'lucide-react';
+import { Settings, Eye, EyeOff, ShieldCheck, Key, AlertTriangle, Trash2, Plus, Cpu, CheckCircle2 } from 'lucide-react';
 
 interface SettingsViewProps {
   userApiKeys: string[];
   setUserApiKeys: (keys: string[]) => void;
   selectedModel?: string;
   setSelectedModel?: (model: string) => void;
-  hasSystemApiKey: boolean;
-  systemApiKeyCount?: number;
   onResetProject: () => void;
 }
 
@@ -16,8 +14,6 @@ export default function SettingsView({
   setUserApiKeys,
   selectedModel = 'gemini-3.6-flash',
   setSelectedModel,
-  hasSystemApiKey,
-  systemApiKeyCount = 0,
   onResetProject,
 }: SettingsViewProps) {
   const [newKey, setNewKey] = useState('');
@@ -98,54 +94,26 @@ export default function SettingsView({
 
       {/* API Key Configuration Card */}
       <div className="bg-white border border-zinc-100 rounded-3xl p-6 shadow-sm space-y-6">
-        <div className="flex items-center gap-2.5">
-          <Key className="w-5 h-5 text-primary" />
-          <h3 className="font-display font-bold text-base text-zinc-900">
-            Daftar API Key Gemini (Multi-Key)
-          </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Key className="w-5 h-5 text-primary" />
+            <h3 className="font-display font-bold text-base text-zinc-900">
+              Daftar API Key Gemini (Multi-Key Pool)
+            </h3>
+          </div>
+          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${userApiKeys.length > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+            {userApiKeys.length > 0 ? `${userApiKeys.length} Kunci Aktif` : 'Belum Dimasukkan'}
+          </span>
         </div>
 
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Sistem mendukung banyak API Key dan otomatis beralih ke kunci lain saat kuota habis atau terkena rate limit.
+          Sistem mendukung banyak API Key dengan fitur <strong>Round Robin</strong> otomatis, failover cerdas, dan <strong>Adaptive Cooldown</strong> jika kuota terlampaui.
         </p>
-
-        {/* Priority List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-400 font-mono">PRIORITAS 1 (SERVER)</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasSystemApiKey ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                {hasSystemApiKey ? (systemApiKeyCount > 0 ? `${systemApiKeyCount} Kunci Aktif` : 'Tersedia') : 'Kosong'}
-              </span>
-            </div>
-            <h4 className="text-sm font-semibold text-zinc-800">
-              API Keys Bawaan Server
-            </h4>
-            <p className="text-xs text-zinc-500">
-              Menggunakan kumpulan <code className="bg-zinc-100 px-1 py-0.5 rounded text-[11px]">GEMINI_API_KEY</code> beserta API Key cadangan di server.
-            </p>
-          </div>
-
-          <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-400 font-mono">PRIORITAS 2 (VISITOR)</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${userApiKeys.length > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-200 text-zinc-600'}`}>
-                {userApiKeys.length > 0 ? `${userApiKeys.length} Kunci Aktif` : 'Belum Dimasukkan'}
-              </span>
-            </div>
-            <h4 className="text-sm font-semibold text-zinc-800">
-              API Keys Cadangan Pengunjung
-            </h4>
-            <p className="text-xs text-zinc-500">
-              Disimpan di browser Anda sendiri. Membantu menjaga kelancaran proses jika batas limit server terlampaui.
-            </p>
-          </div>
-        </div>
 
         {/* Add Key Input Form */}
         <div className="space-y-3 pt-2">
           <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider font-mono">
-            Tambah API Key Gemini Baru (Sisi Pengunjung)
+            Tambah API Key Gemini Baru
           </label>
           
           <form onSubmit={handleAddKey} className="flex gap-2">
@@ -157,7 +125,7 @@ export default function SettingsView({
                   setNewKey(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder="Masukkan API Key Gemini..."
+                placeholder="Masukkan API Key Gemini (AIzaSy...)..."
                 className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-primary transition-all pr-12 font-mono text-zinc-800"
               />
               <button
@@ -184,10 +152,10 @@ export default function SettingsView({
         </div>
 
         {/* User Keys List */}
-        {userApiKeys.length > 0 && (
+        {userApiKeys.length > 0 ? (
           <div className="space-y-2 pt-2">
             <h4 className="text-xs font-bold text-zinc-600 uppercase tracking-wider font-mono">
-              Daftar Kunci Cadangan Anda ({userApiKeys.length})
+              Kunci Terdaftar Dalam Pool ({userApiKeys.length})
             </h4>
             <div className="border border-zinc-100 rounded-2xl divide-y divide-zinc-50 overflow-hidden bg-zinc-50/50">
               {userApiKeys.map((key, idx) => (
@@ -197,7 +165,7 @@ export default function SettingsView({
                       {idx + 1}
                     </div>
                     <code className="text-sm text-zinc-700 font-mono font-medium">
-                      {maskKey(key)}
+                      API Key #{idx + 1} ({maskKey(key)})
                     </code>
                   </div>
                   <button
@@ -211,6 +179,13 @@ export default function SettingsView({
               ))}
             </div>
           </div>
+        ) : (
+          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-800 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <strong>Perhatian:</strong> Belum ada API Key yang dimasukkan. Silakan tambahkan minimal 1 API Key Gemini untuk dapat menjalankan generasi PRD.
+            </div>
+          </div>
         )}
 
         {/* Security Warning */}
@@ -221,7 +196,7 @@ export default function SettingsView({
               Keamanan Terjamin (Privacy Policy)
             </h4>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
-              API Key hanya disimpan sementara di browser Anda dan otomatis terhapus saat tab atau browser ditutup.
+              API Key hanya disimpan di memori browser Anda dan tidak dikirim ke server pihak ketiga manapun selain langsung ke endpoint Google Gemini API.
             </p>
           </div>
         </div>

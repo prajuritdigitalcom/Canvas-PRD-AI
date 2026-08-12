@@ -1,29 +1,31 @@
 /**
- * ApiKeyManager — Round Robin + Failover + Adaptive Cooldown for Gemini API Keys
+ * ApiKeyManager — Unified API Key Pool with True Round Robin, Failover, and Adaptive Cooldown
  * 
  * Features:
- * 1. True Round Robin across healthy keys using a persistent cursor.
- * 2. Failover: Automatic fallback to next healthy key when key-level failure occurs.
- * 3. Adaptive Cooldown: Error classification with exponential backoff & jitter.
- * 4. Key safety: Never logs or returns raw API keys.
+ * 1. Single Visitor Key Pool (No Server Key concepts).
+ * 2. Safe IDs & Label Masking (Raw credentials are never in IDs or logs).
+ * 3. True Round Robin across healthy keys via a persistent cursor.
+ * 4. Separate Model Errors vs Key Errors (Model fallback attempted before key failover).
+ * 5. Adaptive Cooldown with Exponential Backoff + Jitter.
+ * 6. Permanent Disable for AUTH_ERROR (401/403/invalid key).
+ * 7. Reset Health on Success.
  */
 
 export type GeminiErrorType =
   | 'RATE_LIMIT'     // 429, RESOURCE_EXHAUSTED
-  | 'UNAVAILABLE'    // 503, service unavailable
+  | 'UNAVAILABLE'    // 503, service unavailable / overloaded
   | 'SERVER_ERROR'   // 500, 502, 504, transient internal error
   | 'TIMEOUT'        // request/fetch timeout
   | 'NETWORK_ERROR'  // socket/connection failure
   | 'AUTH_ERROR'     // 401, 403, invalid key
-  | 'APP_ERROR'      // 400, bad request, validation error (not key's fault)
+  | 'APP_ERROR'      // 400, bad request, validation error (client payload issue)
   | 'UNKNOWN';
 
 export interface ManagedKey {
-  id: string;              // Unique key ID e.g. "server:1", "visitor:1"
-  key: string;             // Raw API key
-  type: 'env' | 'visitor';
-  index: number;           // 1-based index per type
-  masked: string;          // Safe display label e.g. "Server Key #1 (AIza...4X9Z)"
+  id: string;              // Safe ID e.g. "api-key-1", "api-key-2"
+  key: string;             // Raw API key (used internally only)
+  index: number;           // 1-based index
+  masked: string;          // Safe display label e.g. "API Key #1 (AIza...4X9Z)"
   consecutiveFailures: number;
   totalFailures: number;
   lastUsedAt: number | null;
@@ -114,7 +116,7 @@ const BASE_COOLDOWNS: Record<GeminiErrorType, number> = {
   SERVER_ERROR: 10 * 1000,  // 10s base
   TIMEOUT: 10 * 1000,       // 10s base
   NETWORK_ERROR: 10 * 1000, // 10s base
-  AUTH_ERROR: 3600 * 1000,  // 1 hour / disabled
+  AUTH_ERROR: 24 * 3600 * 1000, // Disabled permanently unless re-registered
   APP_ERROR: 0,             // No penalization
   UNKNOWN: 10 * 1000,
 };
@@ -136,24 +138,34 @@ class ApiKeyManager {
   private cursor = 0;
 
   /**
-   * Sync keys with incoming server and visitor keys, preserving status/failure counts
+   * Synchronize active key pool while preserving failure counters and cooldown state.
    */
-  public registerKeys(serverKeys: string[], visitorKeys: string[]): ManagedKey[] {
-    const activeIds = new Set<string>();
+  public registerKeys(rawKeys: string[]): ManagedKey[] {
+    const activeKeysMap = new Map<string, string>(); // rawKey -> safeId
     const registered: ManagedKey[] = [];
 
-    // Process server keys
-    serverKeys.forEach((key, idx) => {
-      const id = `server:${idx + 1}:${key}`;
-      activeIds.add(id);
-      let existing = this.keysMap.get(id);
+    // Deduplicate and filter non-empty keys
+    const uniqueKeys = Array.from(new Set(rawKeys.map(k => k.trim()).filter(Boolean)));
+
+    uniqueKeys.forEach((key, idx) => {
+      const id = `api-key-${idx + 1}`;
+      activeKeysMap.set(key, id);
+
+      // Search if this exact raw key already exists under any ID
+      let existing: ManagedKey | undefined = undefined;
+      for (const item of Array.from(this.keysMap.values())) {
+        if (item.key === key) {
+          existing = item;
+          break;
+        }
+      }
+
       if (!existing) {
         existing = {
           id,
           key,
-          type: 'env',
           index: idx + 1,
-          masked: `Kunci Server #${idx + 1} (${maskKey(key)})`,
+          masked: `API Key #${idx + 1} (${maskKey(key)})`,
           consecutiveFailures: 0,
           totalFailures: 0,
           lastUsedAt: null,
@@ -162,39 +174,20 @@ class ApiKeyManager {
           lastErrorType: null,
           status: 'healthy',
         };
-        this.keysMap.set(id, existing);
+      } else {
+        // Update index & display label for existing key
+        existing.id = id;
+        existing.index = idx + 1;
+        existing.masked = `API Key #${idx + 1} (${maskKey(key)})`;
       }
+
+      this.keysMap.set(id, existing);
       registered.push(existing);
     });
 
-    // Process visitor keys
-    visitorKeys.forEach((key, idx) => {
-      const id = `visitor:${idx + 1}:${key}`;
-      activeIds.add(id);
-      let existing = this.keysMap.get(id);
-      if (!existing) {
-        existing = {
-          id,
-          key,
-          type: 'visitor',
-          index: idx + 1,
-          masked: `Kunci Pengunjung #${idx + 1} (${maskKey(key)})`,
-          consecutiveFailures: 0,
-          totalFailures: 0,
-          lastUsedAt: null,
-          lastSuccessAt: null,
-          cooldownUntil: 0,
-          lastErrorType: null,
-          status: 'healthy',
-        };
-        this.keysMap.set(id, existing);
-      }
-      registered.push(existing);
-    });
-
-    // Clean up stale keys no longer in active input
-    for (const id of Array.from(this.keysMap.keys())) {
-      if (!activeIds.has(id)) {
+    // Remove keys no longer present in current registration
+    for (const [id, item] of Array.from(this.keysMap.entries())) {
+      if (!uniqueKeys.includes(item.key)) {
         this.keysMap.delete(id);
       }
     }
@@ -203,13 +196,13 @@ class ApiKeyManager {
   }
 
   /**
-   * Get candidate keys sorted by Round Robin cursor order, skipping keys currently in cooldown.
-   * Auto-recovers keys whose cooldown has expired.
+   * Get candidate keys sorted by Round Robin cursor order, skipping keys currently in cooldown or disabled.
+   * Automatically recovers keys whose cooldown period has expired.
    */
   public getCandidateKeys(pool: ManagedKey[]): ManagedKey[] {
     const now = Date.now();
 
-    // Refresh cooldown statuses
+    // Refresh cooldown statuses for keys in pool
     for (const k of pool) {
       if (k.status === 'cooldown' && k.cooldownUntil <= now) {
         k.status = 'healthy';
@@ -225,7 +218,7 @@ class ApiKeyManager {
       return [];
     }
 
-    // Apply Round Robin distribution starting from cursor
+    // Order starting from cursor position
     const ordered: ManagedKey[] = [];
     const startIndex = this.cursor % available.length;
 
@@ -234,14 +227,14 @@ class ApiKeyManager {
       ordered.push(available[idx]);
     }
 
-    // Advance cursor for next request
+    // Advance cursor for next Round Robin selection
     this.cursor = (this.cursor + 1) % Math.max(1, available.length);
 
     return ordered;
   }
 
   /**
-   * Mark key execution as successful
+   * Mark key execution as successful, resetting failure counters and setting status to healthy.
    */
   public markSuccess(keyId: string): void {
     const k = this.keysMap.get(keyId);
@@ -256,7 +249,7 @@ class ApiKeyManager {
   }
 
   /**
-   * Mark key execution as failed and calculate adaptive cooldown
+   * Mark key execution as failed and calculate adaptive cooldown or disable status.
    */
   public markFailure(keyId: string, error: any): GeminiErrorType {
     const k = this.keysMap.get(keyId);
@@ -267,7 +260,7 @@ class ApiKeyManager {
     k.lastUsedAt = Date.now();
     k.lastErrorType = errorType;
 
-    // Do NOT penalize key if the error is caused by application/client request payload
+    // Do NOT penalize key if the error is caused by application/client request payload (400 Bad Request)
     if (errorType === 'APP_ERROR') {
       console.warn(`[API-KEY-MANAGER] [APP_ERROR] ${k.masked} mengalami error request aplikasi (400 Bad Request). Key tidak masuk cooldown.`);
       return errorType;
@@ -278,7 +271,7 @@ class ApiKeyManager {
 
     if (errorType === 'AUTH_ERROR') {
       k.status = 'disabled';
-      k.cooldownUntil = Date.now() + 3600 * 1000; // 1 hour
+      k.cooldownUntil = Date.now() + 365 * 24 * 3600 * 1000; // Permanently disabled
       console.error(`[API-KEY-MANAGER] [AUTH_ERROR] ${k.masked} tidak valid atau tidak memiliki akses (401/403). Status diubah ke DISABLED.`);
       return errorType;
     }
@@ -294,12 +287,11 @@ class ApiKeyManager {
   }
 
   /**
-   * Get safe summary for status inspection
+   * Get safe summary for status inspection without exposing raw credentials.
    */
   public getStatusSummary(): Array<{
     id: string;
     masked: string;
-    type: string;
     index: number;
     status: string;
     consecutiveFailures: number;
@@ -309,7 +301,6 @@ class ApiKeyManager {
     return Array.from(this.keysMap.values()).map(k => ({
       id: k.id,
       masked: k.masked,
-      type: k.type,
       index: k.index,
       status: k.status === 'cooldown' && k.cooldownUntil <= now ? 'healthy' : k.status,
       consecutiveFailures: k.consecutiveFailures,

@@ -4,7 +4,7 @@ import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
 import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
-import { Sparkles, AlertCircle, Info, X, Check, Save, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Sparkles, AlertCircle, Lock, Eye, EyeOff, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_FORM_STATE: ProjectFormState = {
@@ -47,8 +47,6 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [activeTab, setActiveTab] = useState('generator');
-  const [hasSystemApiKey, setHasSystemApiKey] = useState(false);
-  const [systemApiKeyCount, setSystemApiKeyCount] = useState(0);
   const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
   const [isDraftSaved, setIsDraftSaved] = useState(false);
 
@@ -156,21 +154,6 @@ export default function App() {
         setUserApiKeys([legacyKey]);
       }
     }
-
-    // Query system API status on backend
-    fetch('/api/status')
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'ok') {
-          setHasSystemApiKey(data.hasSystemApiKey);
-          if (typeof data.systemApiKeyCount === 'number') {
-            setSystemApiKeyCount(data.systemApiKeyCount);
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Gagal mengecek status kesehatan server:', err);
-      });
   }, []);
 
   // 2. Draft Auto Save functionality
@@ -222,6 +205,12 @@ export default function App() {
       return;
     }
 
+    if (userApiKeys.length === 0) {
+      setErrorMessage('Silakan masukkan minimal 1 API Key Gemini di tab Pengaturan terlebih dahulu.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setErrorMessage('');
     setIsAnalyzing(true);
     setAnalysisStepIndex(0);
@@ -249,7 +238,7 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Terjadi kesalahan saat menganalisis brief.');
+        throw new Error(data.message || data.error || 'Terjadi kesalahan saat menganalisis brief.');
       }
 
       clearInterval(analysisInterval);
@@ -289,6 +278,12 @@ export default function App() {
       return;
     }
 
+    if (userApiKeys.length === 0) {
+      setErrorMessage('Silakan masukkan minimal 1 API Key Gemini di tab Pengaturan terlebih dahulu.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     // Check if auto mode and analysis results are available
     if (formState.generationMode === 'auto' && !analysisResult) {
       setErrorMessage('Silakan jalankan "Analisis Brief Otomatis" terlebih dahulu sebelum membuat PRD.');
@@ -300,9 +295,8 @@ export default function App() {
     setIsGenerating(true);
     setActiveStepIndex(0);
 
-    // Advanced progress bar animation intervals (to create an immersive analysis feel)
-    const stepsCount = 7; // total steps: 0 to 6 are visual steps, 7 is 'done'
-    const stepDuration = 800; // ms per step transition
+    const stepsCount = 7;
+    const stepDuration = 800;
     let currentStep = 0;
 
     const progressInterval = setInterval(() => {
@@ -313,13 +307,11 @@ export default function App() {
     }, stepDuration);
 
     try {
-      // Merge AI Analysis results into the form payload if in Auto Mode
       const finalForm = { ...formState };
       if (formState.generationMode === 'auto' && analysisResult) {
         Object.assign(finalForm, analysisResult.mappedFields);
       }
 
-      // Trigger API fetch
       const res = await fetch('/api/generate-prd', {
         method: 'POST',
         headers: {
@@ -332,24 +324,20 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Terjadi kesalahan saat memproses PRD.');
+        throw new Error(data.message || data.error || 'Terjadi kesalahan saat memproses PRD.');
       }
 
-      // Finish steps simulation before showing results
       clearInterval(progressInterval);
       
-      // Animate through remaining steps quickly
       const runRemainingSteps = async () => {
         for (let s = currentStep + 1; s <= stepsCount; s++) {
           setActiveStepIndex(s);
           await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        // Save response to state and local storage
         setResponseData(data);
         localStorage.setItem('canvas_prd_response_data', JSON.stringify(data));
         
-        // Transition to Output Tab
         setActiveTab('output');
         setIsGenerating(false);
       };
@@ -450,8 +438,6 @@ export default function App() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             hasUserApiKey={userApiKeys.length > 0}
-            hasSystemApiKey={hasSystemApiKey}
-            systemApiKeyCount={systemApiKeyCount}
             isDraftSaved={isDraftSaved}
           />
 
@@ -470,9 +456,9 @@ export default function App() {
               <div className="flex items-center gap-3">
                 {/* Quick API badge indicator */}
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-[10px] font-mono font-bold">
-                  <span className="text-zinc-400">Status API:</span>
-                  <span className={hasSystemApiKey || userApiKeys.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                    {hasSystemApiKey || userApiKeys.length > 0 ? 'Siap' : 'Belum Dikonfigurasi'}
+                  <span className="text-zinc-400">Status API Pool:</span>
+                  <span className={userApiKeys.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                    {userApiKeys.length > 0 ? `${userApiKeys.length} Kunci Aktif` : 'Belum Dikonfigurasi'}
                   </span>
                 </div>
 
@@ -514,63 +500,61 @@ export default function App() {
                 </div>
               )}
 
-          {/* Active Tab rendering */}
-          {activeTab === 'generator' && (
-            <div className="space-y-6">
-              {/* Hero Banner */}
-              <div className="space-y-2 py-2 text-center">
-                <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900 mx-auto">
-                  Ubah Brief Mentah Menjadi PRD Gemini Canvas
-                </h1>
-                <p className="text-xs text-zinc-500 leading-relaxed mx-auto max-w-xl">
-                  Isi parameter dan dokumen referensi Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi secara instan.
-                </p>
-              </div>
+              {/* Active Tab rendering */}
+              {activeTab === 'generator' && (
+                <div className="space-y-6">
+                  {/* Hero Banner */}
+                  <div className="space-y-2 py-2 text-center">
+                    <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-zinc-900 mx-auto">
+                      Ubah Brief Mentah Menjadi PRD Gemini Canvas
+                    </h1>
+                    <p className="text-xs text-zinc-500 leading-relaxed mx-auto max-w-xl">
+                      Isi parameter dan dokumen referensi Anda. AI PM Senior kami akan menganalisis dan merancang blueprint PRD berkualitas tinggi secara instan.
+                    </p>
+                  </div>
 
-              <GeneratorForm
-                formState={formState}
-                setFormState={setFormState}
-                onGenerate={handleGeneratePRD}
-                onReset={handleResetProject}
-                isGenerating={isGenerating}
-                activeStepIndex={activeStepIndex}
-                analysisResult={analysisResult}
-                setAnalysisResult={setAnalysisResult}
-                isAnalyzing={isAnalyzing}
-                onAnalyze={handleAnalyzeBrief}
-                analysisStepIndex={analysisStepIndex}
-              />
+                  <GeneratorForm
+                    formState={formState}
+                    setFormState={setFormState}
+                    onGenerate={handleGeneratePRD}
+                    onReset={handleResetProject}
+                    isGenerating={isGenerating}
+                    activeStepIndex={activeStepIndex}
+                    analysisResult={analysisResult}
+                    setAnalysisResult={setAnalysisResult}
+                    isAnalyzing={isAnalyzing}
+                    onAnalyze={handleAnalyzeBrief}
+                    analysisStepIndex={analysisStepIndex}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'output' && (
+                <OutputView
+                  responseData={responseData}
+                  projectName={formState.projectName || 'My_Project'}
+                  onRegenerate={handleGeneratePRD}
+                  onEdit={() => setActiveTab('generator')}
+                  onClear={() => {
+                    setResponseData(null);
+                    localStorage.removeItem('canvas_prd_response_data');
+                  }}
+                  isGenerating={isGenerating}
+                />
+              )}
+
+              {activeTab === 'settings' && (
+                <SettingsView
+                  userApiKeys={userApiKeys}
+                  setUserApiKeys={setUserApiKeys}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
+                  onResetProject={handleResetProject}
+                />
+              )}
             </div>
-          )}
-
-          {activeTab === 'output' && (
-            <OutputView
-              responseData={responseData}
-              projectName={formState.projectName || 'My_Project'}
-              onRegenerate={handleGeneratePRD}
-              onEdit={() => setActiveTab('generator')}
-              onClear={() => {
-                setResponseData(null);
-                localStorage.removeItem('canvas_prd_response_data');
-              }}
-              isGenerating={isGenerating}
-            />
-          )}
-
-          {activeTab === 'settings' && (
-            <SettingsView
-              userApiKeys={userApiKeys}
-              setUserApiKeys={setUserApiKeys}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
-              hasSystemApiKey={hasSystemApiKey}
-              systemApiKeyCount={systemApiKeyCount}
-              onResetProject={handleResetProject}
-            />
-          )}
+          </main>
         </div>
-      </main>
-    </div>
       )}
     </AnimatePresence>
   );

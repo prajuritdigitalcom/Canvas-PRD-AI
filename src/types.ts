@@ -170,4 +170,6 @@ export interface PRDGenerateResponse {
   };
   wordCount: number;
   readingTime: number;
+  usedKeyIndex?: number;
+  usedModel?: string;
 }

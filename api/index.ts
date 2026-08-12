@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import { buildSystemPrompt, buildUserPrompt } from '../src/prompts/promptTemplates.js';
 import { DESIGN_MOODS, WEBSITE_TYPE_TO_MOOD_MAP } from '../src/data/designMoods.js';
-import { apiKeyManager, maskKey, classifyGeminiError, ManagedKey } from './apiKeyManager.js';
+import { apiKeyManager, classifyGeminiError, ManagedKey } from './apiKeyManager.js';
 
 export const maxDuration = 300; // Set Vercel serverless function timeout to 300 seconds
 
@@ -153,55 +153,12 @@ function isSuspiciousPromptInjection(text?: string): boolean {
 const MAX_BRIEF_LENGTH = 10000; // characters
 const MAX_EXTRA_INSTRUCTION_LENGTH = 3000; // characters
 
-// Collect and sort all keys from environment variables
-const getSystemApiKeys = (): string[] => {
-  const keyMap: { envKey: string; score: number; value: string }[] = [];
-  
-  for (const envKey of Object.keys(process.env)) {
-    const upperEnvKey = envKey.toUpperCase();
-    if (upperEnvKey.startsWith('GEMINI_API_KEY')) {
-      const val = process.env[envKey]?.trim();
-      if (val) {
-        let score = 9999;
-        if (upperEnvKey === 'GEMINI_API_KEY') {
-          score = 0;
-        } else {
-          const match = upperEnvKey.match(/GEMINI_API_KEY_(\d+)/);
-          if (match) {
-            score = parseInt(match[1], 10);
-          }
-        }
-        
-        const splitVals = val.split(/[\s,;]+/).map(k => k.trim()).filter(Boolean);
-        for (const splitVal of splitVals) {
-          keyMap.push({ envKey, score, value: splitVal });
-        }
-      }
-    }
-  }
-  
-  keyMap.sort((a, b) => {
-    if (a.score !== b.score) {
-      return a.score - b.score;
-    }
-    return a.envKey.localeCompare(b.envKey);
-  });
-  
-  const uniqueKeys: string[] = [];
-  for (const item of keyMap) {
-    if (!uniqueKeys.includes(item.value)) {
-      uniqueKeys.push(item.value);
-    }
-  }
-  return uniqueKeys;
-};
-
-// Helper to extract visitor keys from request body or headers
-function extractVisitorKeys(req: express.Request, bodyUserApiKeys?: any): string[] {
-  let visitorKeys: string[] = [];
+// Helper to extract visitor API keys from request body or headers
+function extractUserApiKeys(req: express.Request, bodyUserApiKeys?: any): string[] {
+  let apiKeys: string[] = [];
 
   if (Array.isArray(bodyUserApiKeys)) {
-    visitorKeys.push(...bodyUserApiKeys.map(k => String(k).trim()).filter(Boolean));
+    apiKeys.push(...bodyUserApiKeys.map(k => String(k).trim()).filter(Boolean));
   }
 
   const headerUserKeysRaw = req.headers['x-user-api-keys'] as string | undefined;
@@ -209,30 +166,26 @@ function extractVisitorKeys(req: express.Request, bodyUserApiKeys?: any): string
     try {
       const parsed = JSON.parse(headerUserKeysRaw);
       if (Array.isArray(parsed)) {
-        visitorKeys.push(...parsed.map((k: any) => String(k).trim()).filter(Boolean));
+        apiKeys.push(...parsed.map((k: any) => String(k).trim()).filter(Boolean));
       }
     } catch (e) {
       const splitVals = headerUserKeysRaw.split(/[\s,;]+/).map(k => k.trim()).filter(Boolean);
-      visitorKeys.push(...splitVals);
+      apiKeys.push(...splitVals);
     }
   }
 
   const legacyHeaderKey = req.headers['x-user-api-key'] as string | undefined;
   if (legacyHeaderKey && legacyHeaderKey.trim()) {
-    visitorKeys.push(legacyHeaderKey.trim());
+    apiKeys.push(legacyHeaderKey.trim());
   }
 
-  return Array.from(new Set(visitorKeys));
+  return Array.from(new Set(apiKeys));
 }
 
 // API status check
 app.get('/api/status', (req, res) => {
-  const systemKeys = getSystemApiKeys();
-  apiKeyManager.registerKeys(systemKeys, []);
   res.json({
     status: 'ok',
-    hasSystemApiKey: systemKeys.length > 0,
-    systemApiKeyCount: systemKeys.length,
     defaultModels: DEFAULT_MODEL_CHAIN,
     keyHealth: apiKeyManager.getStatusSummary()
   });
@@ -311,24 +264,22 @@ app.post('/api/generate-prd', async (req, res) => {
 
     console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Mode AI: ${form.aiMode} | Kreativitas: ${form.creativitySlider}% | Model Chain: [${requestModelChain.join(', ')}]`);
 
-    // Register server keys & visitor keys in ApiKeyManager
-    const systemKeys = getSystemApiKeys();
-    const visitorKeys = extractVisitorKeys(req, bodyUserApiKeys);
+    // Register user API keys in ApiKeyManager Pool
+    const rawUserKeys = extractUserApiKeys(req, bodyUserApiKeys);
+    console.log(`[CANVAS-PRD-AI] [KEYS] Jumlah Visitor API Keys diterima: ${rawUserKeys.length}`);
 
-    console.log(`[CANVAS-PRD-AI] [KEYS] Kunci Server (Vercel Env): ${systemKeys.length} | Kunci Pengunjung (Browser): ${visitorKeys.length}`);
-
-    const registeredKeys = apiKeyManager.registerKeys(systemKeys, visitorKeys);
+    const registeredKeys = apiKeyManager.registerKeys(rawUserKeys);
     if (registeredKeys.length === 0) {
-      console.error('[CANVAS-PRD-AI] [ERROR] Tidak ada API Key yang dapat digunakan.');
+      console.error('[CANVAS-PRD-AI] [ERROR] Tidak ada API Key yang terdeteksi.');
       return res.status(400).json({
-        error: 'Tidak ada API Key yang terdeteksi. Silakan konfigurasi API Key bawaan di server (Vercel Env) atau masukkan API Key Anda sendiri di tab Pengaturan.'
+        error: 'Tidak ada API Key yang terdeteksi. Silakan masukkan API Key Gemini Anda di tab Pengaturan.'
       });
     }
 
     // Get candidates sorted by Round Robin cursor order (skipping cooldown/disabled)
     const candidateKeys = apiKeyManager.getCandidateKeys(registeredKeys);
     if (candidateKeys.length === 0) {
-      console.warn('[CANVAS-PRD-AI] [COOLDOWN-ALL] Seluruh API Key sedang dalam masa cooldown.');
+      console.warn('[CANVAS-PRD-AI] [COOLDOWN-ALL] Seluruh API Key sedang dalam masa cooldown atau disabled.');
       return res.status(429).json({
         error: 'ALL_API_KEYS_IN_COOLDOWN',
         message: 'Seluruh API Key yang tersedia sedang dalam masa cooldown karena limit kuota/rate-limit. Silakan coba beberapa saat lagi.',
@@ -340,13 +291,14 @@ app.post('/api/generate-prd', async (req, res) => {
     let responseText = '';
     let successfulKey: ManagedKey | null = null;
     let successfulModel = requestModelChain[0];
-    const errorsList: string[] = [];
 
     // Round Robin & Failover Loop
     for (const keyCandidate of candidateKeys) {
-      let keySuccess = false;
+      let keyHandled = false;
 
-      for (const modelName of requestModelChain) {
+      // Model Fallback Loop for the current key
+      for (let mIdx = 0; mIdx < requestModelChain.length; mIdx++) {
+        const modelName = requestModelChain[mIdx];
         try {
           console.log(`[CANVAS-PRD-AI] [ROUND-ROBIN] Mencoba ${keyCandidate.masked} dengan model "${modelName}"...`);
 
@@ -429,28 +381,34 @@ app.post('/api/generate-prd', async (req, res) => {
           responseText = result.text || '';
           successfulKey = keyCandidate;
           successfulModel = modelName;
-          keySuccess = true;
+          keyHandled = true;
 
           apiKeyManager.markSuccess(keyCandidate.id);
           console.log(`✅ [CANVAS-PRD-AI] [SUKSES] Berhasil memproses PRD menggunakan model "${modelName}" dan ${keyCandidate.masked}!`);
-          break; // Stop model loop
+          break; // Success! Break model loop
         } catch (err: any) {
-          const errorType = apiKeyManager.markFailure(keyCandidate.id, err);
+          const errorType = classifyGeminiError(err);
           const errMsg = err?.message || String(err);
-          console.error(`❌ [CANVAS-PRD-AI] [ERROR-KEY] Gagal pada ${keyCandidate.masked} (${modelName}): [${errorType}] ${errMsg}`);
-          errorsList.push(`${keyCandidate.masked} (${modelName}): [${errorType}] ${errMsg}`);
 
           if (errorType === 'APP_ERROR') {
+            console.error(`❌ [CANVAS-PRD-AI] [APP-ERROR] 400 Bad Request: ${errMsg}`);
             return res.status(400).json({ error: `Gagal memproses request: ${errMsg}` });
           }
 
-          // Key-level error — failover to next keyCandidate
-          break;
+          if ((errorType === 'UNAVAILABLE' || errorType === 'SERVER_ERROR') && mIdx < requestModelChain.length - 1) {
+            console.warn(`[CANVAS-PRD-AI] [MODEL-FALLBACK] Model "${modelName}" mengalami [${errorType}]. Mencoba model fallback berikutnya dengan ${keyCandidate.masked}...`);
+            continue; // Try next model in chain with SAME key!
+          }
+
+          // Key-level error or all models failed for this key
+          apiKeyManager.markFailure(keyCandidate.id, err);
+          console.error(`❌ [CANVAS-PRD-AI] [ERROR-KEY] Gagal pada ${keyCandidate.masked} (${modelName}): [${errorType}]`);
+          break; // Failover to next key in candidate list
         }
       }
 
-      if (keySuccess) {
-        break; // Stop key candidate loop upon first success
+      if (keyHandled) {
+        break; // Success! Break key candidate loop
       }
     }
 
@@ -458,9 +416,8 @@ app.post('/api/generate-prd', async (req, res) => {
       console.error('[CANVAS-PRD-AI] [FATAL-ROTASI] Seluruh API Key yang tersedia gagal memproses permintaan.');
       return res.status(500).json({
         error: 'ALL_API_KEYS_FAILED',
-        message: 'Seluruh API Key yang tersedia gagal memproses permintaan. Silakan periksa limit kuota Anda.',
-        retryable: true,
-        details: errorsList
+        message: 'Seluruh API Key yang tersedia gagal memproses permintaan. Silakan periksa limit kuota atau status API Key Anda.',
+        retryable: true
       });
     }
 
@@ -491,7 +448,6 @@ app.post('/api/generate-prd', async (req, res) => {
         },
         wordCount,
         readingTime,
-        usedKeyType: successfulKey.type,
         usedKeyIndex: successfulKey.index,
         usedModel: successfulModel
       });
@@ -519,7 +475,6 @@ app.post('/api/generate-prd', async (req, res) => {
         },
         wordCount,
         readingTime,
-        usedKeyType: successfulKey.type,
         usedKeyIndex: successfulKey.index,
         usedModel: successfulModel
       });
@@ -564,14 +519,12 @@ app.post('/api/analyze-brief', async (req, res) => {
 
     console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Tipe Website: ${form.websiteType} | Model Chain: [${requestModelChain.join(', ')}]`);
 
-    // Register server keys & visitor keys
-    const systemKeys = getSystemApiKeys();
-    const visitorKeys = extractVisitorKeys(req, bodyUserApiKeys);
-
-    const registeredKeys = apiKeyManager.registerKeys(systemKeys, visitorKeys);
+    // Register user API keys in ApiKeyManager Pool
+    const rawUserKeys = extractUserApiKeys(req, bodyUserApiKeys);
+    const registeredKeys = apiKeyManager.registerKeys(rawUserKeys);
     if (registeredKeys.length === 0) {
       return res.status(400).json({
-        error: 'Tidak ada API Key yang terdeteksi. Silakan konfigurasi API Key di tab Pengaturan.'
+        error: 'Tidak ada API Key yang terdeteksi. Silakan masukkan API Key Gemini Anda di tab Pengaturan.'
       });
     }
 
@@ -588,13 +541,14 @@ app.post('/api/analyze-brief', async (req, res) => {
     let responseText = '';
     let successfulKey: ManagedKey | null = null;
     let successfulModel = requestModelChain[0];
-    const errorsList: string[] = [];
 
     // Round Robin Candidate Execution
     for (const keyCandidate of candidateKeys) {
-      let keySuccess = false;
+      let keyHandled = false;
 
-      for (const modelName of requestModelChain) {
+      // Model Fallback Loop for current key
+      for (let mIdx = 0; mIdx < requestModelChain.length; mIdx++) {
+        const modelName = requestModelChain[mIdx];
         try {
           console.log(`[CANVAS-PRD-AI] [ROUND-ROBIN-ANALYSIS] Mencoba ${keyCandidate.masked} & model "${modelName}"...`);
 
@@ -711,35 +665,40 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
           responseText = response.text || '';
           successfulKey = keyCandidate;
           successfulModel = modelName;
-          keySuccess = true;
+          keyHandled = true;
 
           apiKeyManager.markSuccess(keyCandidate.id);
           console.log(`✅ [CANVAS-PRD-AI] [SUKSES-ANALISIS] Berhasil analisis brief dengan model "${modelName}" & ${keyCandidate.masked}!`);
-          break;
+          break; // Success! Break model loop
         } catch (err: any) {
-          const errorType = apiKeyManager.markFailure(keyCandidate.id, err);
+          const errorType = classifyGeminiError(err);
           const errMsg = err?.message || String(err);
-          console.error(`❌ [CANVAS-PRD-AI] [ERROR-ANALISIS] ${keyCandidate.masked} (${modelName}): [${errorType}] ${errMsg}`);
-          errorsList.push(`${keyCandidate.masked} (${modelName}): [${errorType}] ${errMsg}`);
 
           if (errorType === 'APP_ERROR') {
             return res.status(400).json({ error: `Gagal memproses analisis: ${errMsg}` });
           }
 
-          break; // Failover to next key
+          if ((errorType === 'UNAVAILABLE' || errorType === 'SERVER_ERROR') && mIdx < requestModelChain.length - 1) {
+            console.warn(`[CANVAS-PRD-AI] [MODEL-FALLBACK] Model "${modelName}" mengalami [${errorType}]. Mencoba model fallback berikutnya dengan ${keyCandidate.masked}...`);
+            continue; // Try next model in chain with SAME key!
+          }
+
+          // Key-level error or all models failed for this key
+          apiKeyManager.markFailure(keyCandidate.id, err);
+          console.error(`❌ [CANVAS-PRD-AI] [ERROR-ANALISIS] ${keyCandidate.masked} (${modelName}): [${errorType}]`);
+          break; // Failover to next key in candidate list
         }
       }
 
-      if (keySuccess) {
-        break;
+      if (keyHandled) {
+        break; // Success! Break key candidate loop
       }
     }
 
     if (!responseText || !successfulKey) {
       return res.status(500).json({
         error: 'ALL_API_KEYS_FAILED',
-        message: 'Seluruh API Key yang tersedia gagal memproses analisis brief.',
-        details: errorsList
+        message: 'Seluruh API Key yang tersedia gagal memproses analisis brief.'
       });
     }
 
