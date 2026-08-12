@@ -31,7 +31,7 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
   metaTitle: '',
   metaDescription: '',
   gscVerificationTag: '',
-  aiMode: 'Balanced',
+  aiMode: 'Professional',
   creativitySlider: 50,
   reasoningLevel: 'Standard',
   extraInstruction: ''

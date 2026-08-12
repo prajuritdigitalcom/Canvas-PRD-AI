@@ -1115,7 +1115,6 @@ export default function GeneratorForm({
                     className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
                   >
                     <option value="Quick">Quick — Ringkas &amp; Cepat</option>
-                    <option value="Balanced">Balanced — Standar &amp; Seimbang</option>
                     <option value="Professional">Professional — Detail &amp; Komprehensif</option>
                     <option value="Enterprise">Enterprise — Sangat Panjang &amp; Ekstensive</option>
                   </select>
@@ -1131,7 +1130,6 @@ export default function GeneratorForm({
                     onChange={e => setFormState(prev => ({ ...prev, reasoningLevel: e.target.value as ReasoningLevel }))}
                     className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
                   >
-                    <option value="Basic">Basic — Ekspres &amp; Efisien</option>
                     <option value="Standard">Standard — Analisis Standar</option>
                     <option value="Advanced">Advanced — Analisis Mendalam</option>
                     <option value="Maximum">Maximum — Analisis Ekstrem</option>

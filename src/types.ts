@@ -66,9 +66,9 @@ export type TypographyOption =
   | 'Lora'
   | 'Auto';
 
-export type AIMode = 'Quick' | 'Balanced' | 'Professional' | 'Enterprise';
+export type AIMode = 'Quick' | 'Professional' | 'Enterprise';
 
-export type ReasoningLevel = 'Basic' | 'Standard' | 'Advanced' | 'Maximum';
+export type ReasoningLevel = 'Standard' | 'Advanced' | 'Maximum';
 
 export type GenerationMode = 'auto' | 'manual';
 
