@@ -2,9 +2,9 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
-import { buildSystemPrompt, buildUserPrompt } from '../src/prompts/promptTemplates.js';
-import { DESIGN_MOODS, WEBSITE_TYPE_TO_MOOD_MAP } from '../src/data/designMoods.js';
+import { DESIGN_MOODS } from '../src/data/designMoods.js';
 import { apiKeyManager, classifyGeminiError, ManagedKey } from './apiKeyManager.js';
+import { generatePRDInChunks } from './prd/chunkGenerator.js';
 
 export const maxDuration = 300; // Set Vercel serverless function timeout to 300 seconds
 
@@ -25,97 +25,6 @@ const PASSWORD_ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_MODEL_CHAIN: string[] = (process.env.GEMINI_MODEL_CHAIN
   ? process.env.GEMINI_MODEL_CHAIN.split(',').map(m => m.trim()).filter(Boolean)
   : ['gemini-3.6-flash', 'gemini-3.5-flash']);
-
-// Translate creativity slider (0-100) to explicit prompt instructions
-const getCreativityInstruction = (sliderValue: number): string => {
-  if (sliderValue <= 30) {
-    return 'Patuhi referensi input secara ketat, minim penambahan asumsi baru.';
-  } else if (sliderValue <= 70) {
-    return 'Seimbangkan antara mengikuti referensi dan menambahkan rekomendasi best-practice yang wajar.';
-  } else {
-    return 'Bebas berinovasi dan menambahkan ide/asumsi profesional secara luas, selama tetap relevan dengan bisnis.';
-  }
-};
-
-// Programmatic PRD validator to verify AI self-review assertions and calculate objective readiness
-interface PRDValidationResult {
-  passed: string[];
-  warnings: string[];
-  adjustedScore: number;
-}
-
-const FORBIDDEN_BRAND_NAMES = [
-  'linear', 'stripe', 'apple', 'aesop', 'gumroad', 'figma', 'dribbble', 
-  'headspace', 'duolingo', 'pitch.com', 'bentley motors', 'rolex'
-];
-
-function validatePRDContent(
-  markdownText: string,
-  aiReportedScore: number,
-  aiReportedReasons: { passed: string[]; warnings: string[] },
-  userBriefText: string = ''
-): PRDValidationResult {
-  const passed = [...(aiReportedReasons?.passed || [])];
-  const warnings = [...(aiReportedReasons?.warnings || [])];
-
-  // 1. Check for duplicate adjacent words
-  const duplicateWordsMatch = markdownText.match(/\b(\w{3,})\s+\1\b/gi);
-  if (duplicateWordsMatch && duplicateWordsMatch.length > 0) {
-    const uniqueDups = Array.from(new Set(duplicateWordsMatch.map(w => w.toLowerCase())));
-    warnings.push(`Terdeteksi pengulangan kata berurutan: "${uniqueDups.slice(0, 3).join('", "')}".`);
-  } else {
-    passed.push('Bebas dari pengulangan kata berurutan.');
-  }
-
-  // 2. Check for internal reference brand name leaks
-  const foundBrands: string[] = [];
-  const lowerText = markdownText.toLowerCase();
-  const lowerUserBrief = userBriefText.toLowerCase();
-  for (const brand of FORBIDDEN_BRAND_NAMES) {
-    if (lowerText.includes(brand) && !lowerUserBrief.includes(brand)) {
-      foundBrands.push(brand);
-    }
-  }
-  if (foundBrands.length > 0) {
-    warnings.push(`Terdeteksi rujukan nama brand internal (${foundBrands.map(b => `"${b}"`).join(', ')}).`);
-  } else {
-    passed.push('Kerahasiaan referensi merek internal terjaga.');
-  }
-
-  // 3. Check for essential PRD section headers
-  const requiredHeaders = [
-    'Executive Summary',
-    'Business Overview',
-    'Color Palette',
-    'Typography',
-    'Page-by-Page & Section-by-Section Breakdown',
-    'Technical Notes for Gemini Canvas',
-    'Final Instruction For Gemini Canvas'
-  ];
-  let missingHeaders = 0;
-  for (const header of requiredHeaders) {
-    if (!markdownText.toLowerCase().includes(header.toLowerCase())) {
-      missingHeaders++;
-      warnings.push(`Bagian "${header}" tidak terdeteksi di dokumen.`);
-    }
-  }
-  if (missingHeaders === 0) {
-    passed.push('Seluruh struktur section wajib PRD terisi lengkap.');
-  }
-
-  // 4. Calculate objective score
-  let validatorScore = 100;
-  validatorScore -= warnings.length * 5;
-  validatorScore = Math.max(50, Math.min(100, validatorScore));
-
-  const adjustedScore = Math.round((aiReportedScore * 0.6) + (validatorScore * 0.4));
-
-  return {
-    passed: Array.from(new Set(passed)),
-    warnings: Array.from(new Set(warnings)),
-    adjustedScore
-  };
-}
 
 // Map reasoning level to Google GenAI thinkingLevel enum
 const getThinkingConfig = (reasoningLevel?: string) => {
@@ -226,7 +135,7 @@ app.post('/api/verify-password', (req, res) => {
   return res.json({ success: false, error: 'Password salah, silakan coba lagi.' });
 });
 
-// PRD Generation Endpoint
+// PRD Generation Endpoint (Adaptive Semantic Chunked Generation)
 app.post('/api/generate-prd', async (req, res) => {
   console.log('\n=========================================');
   console.log('[CANVAS-PRD-AI] [REQUEST] Menerima permintaan pembuatan PRD baru...');
@@ -255,230 +164,11 @@ app.post('/api/generate-prd', async (req, res) => {
       console.warn('[CANVAS-PRD-AI] [SECURITY-LOG] Terdeteksi frasa berpotensi prompt-injection pada input.');
     }
 
-    // Build model chain for this request
-    let requestModelChain = [...DEFAULT_MODEL_CHAIN];
-    if (selectedModel && typeof selectedModel === 'string' && selectedModel.trim()) {
-      const chosen = selectedModel.trim();
-      requestModelChain = [chosen, ...DEFAULT_MODEL_CHAIN.filter(m => m !== chosen)];
-    }
-
-    console.log(`[CANVAS-PRD-AI] [METADATA] Nama Proyek: "${form.projectName || 'Tanpa Nama'}" | Mode AI: ${form.aiMode} | Kreativitas: ${form.creativitySlider}% | Model Chain: [${requestModelChain.join(', ')}]`);
-
-    // Register user API keys in ApiKeyManager Pool
     const rawUserKeys = extractUserApiKeys(req, bodyUserApiKeys);
     console.log(`[CANVAS-PRD-AI] [KEYS] Jumlah Visitor API Keys diterima: ${rawUserKeys.length}`);
 
-    const registeredKeys = apiKeyManager.registerKeys(rawUserKeys);
-    if (registeredKeys.length === 0) {
-      console.error('[CANVAS-PRD-AI] [ERROR] Tidak ada API Key yang terdeteksi.');
-      return res.status(400).json({
-        error: 'Tidak ada API Key yang terdeteksi. Silakan masukkan API Key Gemini Anda di tab Pengaturan.'
-      });
-    }
-
-    // Get candidates sorted by Round Robin cursor order (skipping cooldown/disabled)
-    const candidateKeys = apiKeyManager.getCandidateKeys(registeredKeys);
-    if (candidateKeys.length === 0) {
-      console.warn('[CANVAS-PRD-AI] [COOLDOWN-ALL] Seluruh API Key sedang dalam masa cooldown atau disabled.');
-      return res.status(429).json({
-        error: 'ALL_API_KEYS_IN_COOLDOWN',
-        message: 'Seluruh API Key yang tersedia sedang dalam masa cooldown karena limit kuota/rate-limit. Silakan coba beberapa saat lagi.',
-        retryable: true,
-        keyHealth: apiKeyManager.getStatusSummary()
-      });
-    }
-
-    let responseText = '';
-    let successfulKey: ManagedKey | null = null;
-    let successfulModel = requestModelChain[0];
-
-    // Round Robin & Failover Loop
-    for (const keyCandidate of candidateKeys) {
-      let keyHandled = false;
-
-      // Model Fallback Loop for the current key
-      for (let mIdx = 0; mIdx < requestModelChain.length; mIdx++) {
-        const modelName = requestModelChain[mIdx];
-        try {
-          console.log(`[CANVAS-PRD-AI] [ROUND-ROBIN] Mencoba ${keyCandidate.masked} dengan model "${modelName}"...`);
-
-          const ai = new GoogleGenAI({
-            apiKey: keyCandidate.key,
-            httpOptions: {
-              headers: {
-                'User-Agent': 'aistudio-build',
-              }
-            }
-          });
-
-          // Resolve Mood & Density
-          let resolvedMoodId = form.designMoodId || 'auto';
-          let resolvedDensityId = form.designDensity || 'auto';
-
-          if (resolvedMoodId === 'auto') {
-            const mapped = WEBSITE_TYPE_TO_MOOD_MAP[form.websiteType];
-            resolvedMoodId = mapped?.moodId || DESIGN_MOODS[0].id;
-            if (resolvedDensityId === 'auto') {
-              resolvedDensityId = mapped?.density || 'standard';
-            }
-          }
-          if (resolvedDensityId === 'auto') {
-            const moodForDensity = DESIGN_MOODS.find(m => m.id === resolvedMoodId);
-            resolvedDensityId = moodForDensity?.recommendedDensity || 'standard';
-          }
-
-          const creativityDirective = getCreativityInstruction(form.creativitySlider);
-          const systemInstruction = buildSystemPrompt() + `\n\nDirectives for Creativity Level (${form.creativitySlider}%): ${creativityDirective}`;
-          const userPrompt = buildUserPrompt(form, {
-            moodId: resolvedMoodId,
-            densityId: resolvedDensityId,
-          });
-
-          const thinkingConfig = getThinkingConfig(form.reasoningLevel);
-
-          console.log(`[CANVAS-PRD-AI] [MODEL-START] Mengirim ke Gemini model: "${modelName}", reasoning: ${form.reasoningLevel || 'Standard'}, kreativitas: ${form.creativitySlider}%...`);
-
-          const result = await ai.models.generateContent({
-            model: modelName,
-            contents: userPrompt,
-            config: {
-              systemInstruction,
-              ...thinkingConfig,
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  markdown: {
-                    type: Type.STRING,
-                    description: 'Dokumen PRD lengkap dalam format Markdown.'
-                  },
-                  readyScore: {
-                    type: Type.INTEGER,
-                    description: 'Skor kesiapan Canvas (0-100) berdasarkan kelengkapan parameter input.'
-                  },
-                  scoreReasons: {
-                    type: Type.OBJECT,
-                    properties: {
-                      passed: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING },
-                        description: 'Daftar parameter atau kelengkapan yang sudah terpenuhi.'
-                      },
-                      warnings: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING },
-                        description: 'Daftar hal-hal yang kurang atau disarankan untuk dilengkapi.'
-                      }
-                    },
-                    required: ['passed', 'warnings']
-                  }
-                },
-                required: ['markdown', 'readyScore', 'scoreReasons']
-              }
-            }
-          });
-
-          responseText = result.text || '';
-          successfulKey = keyCandidate;
-          successfulModel = modelName;
-          keyHandled = true;
-
-          apiKeyManager.markSuccess(keyCandidate.id);
-          console.log(`✅ [CANVAS-PRD-AI] [SUKSES] Berhasil memproses PRD menggunakan model "${modelName}" dan ${keyCandidate.masked}!`);
-          break; // Success! Break model loop
-        } catch (err: any) {
-          const errorType = classifyGeminiError(err);
-          const errMsg = err?.message || String(err);
-
-          if (errorType === 'APP_ERROR') {
-            console.error(`❌ [CANVAS-PRD-AI] [APP-ERROR] 400 Bad Request: ${errMsg}`);
-            return res.status(400).json({ error: `Gagal memproses request: ${errMsg}` });
-          }
-
-          if ((errorType === 'UNAVAILABLE' || errorType === 'SERVER_ERROR') && mIdx < requestModelChain.length - 1) {
-            console.warn(`[CANVAS-PRD-AI] [MODEL-FALLBACK] Model "${modelName}" mengalami [${errorType}]. Mencoba model fallback berikutnya dengan ${keyCandidate.masked}...`);
-            continue; // Try next model in chain with SAME key!
-          }
-
-          // Key-level error or all models failed for this key
-          apiKeyManager.markFailure(keyCandidate.id, err);
-          console.error(`❌ [CANVAS-PRD-AI] [ERROR-KEY] Gagal pada ${keyCandidate.masked} (${modelName}): [${errorType}]`);
-          break; // Failover to next key in candidate list
-        }
-      }
-
-      if (keyHandled) {
-        break; // Success! Break key candidate loop
-      }
-    }
-
-    if (!responseText || !successfulKey) {
-      console.error('[CANVAS-PRD-AI] [FATAL-ROTASI] Seluruh API Key yang tersedia gagal memproses permintaan.');
-      return res.status(500).json({
-        error: 'ALL_API_KEYS_FAILED',
-        message: 'Seluruh API Key yang tersedia gagal memproses permintaan. Silakan periksa limit kuota atau status API Key Anda.',
-        retryable: true
-      });
-    }
-
-    // Parse JSON response
-    try {
-      console.log('[CANVAS-PRD-AI] [PARSE] Mencoba mengurai teks respons JSON dari Gemini...');
-      const parsed = JSON.parse(responseText.trim());
-      
-      const markdownText = parsed.markdown || '';
-      const wordCount = markdownText.split(/\s+/).filter(Boolean).length;
-      const readingTime = Math.max(1, Math.round(wordCount / 200));
-
-      const validation = validatePRDContent(
-        markdownText,
-        parsed.readyScore || 80,
-        parsed.scoreReasons || { passed: [], warnings: [] },
-        form.referenceInformation || ''
-      );
-
-      console.log(`[CANVAS-PRD-AI] [PARSE-SUKSES] Berhasil parsing JSON (${successfulModel}). Karakter Markdown: ${markdownText.length} | Jumlah kata: ${wordCount} | Skor Terverifikasi: ${validation.adjustedScore}`);
-
-      return res.json({
-        markdown: markdownText,
-        readyScore: validation.adjustedScore,
-        scoreReasons: {
-          passed: validation.passed,
-          warnings: validation.warnings
-        },
-        wordCount,
-        readingTime,
-        usedKeyIndex: successfulKey.index,
-        usedModel: successfulModel
-      });
-    } catch (parseErr: any) {
-      console.error('❌ [CANVAS-PRD-AI] [PARSE-FAIL] Gagal mem-parse JSON hasil AI:', parseErr);
-      
-      const trimmedText = responseText.trim();
-      const looksLikeTruncatedJson = (trimmedText.startsWith('{') || trimmedText.includes('"markdown":'));
-
-      if (looksLikeTruncatedJson) {
-        console.error('❌ [CANVAS-PRD-AI] [PARSE-FAIL-TRUNCATED] Respons AI terindikasi sebagai JSON terpotong.');
-        return res.status(502).json({
-          error: 'Dokumen PRD gagal digenerasi secara utuh karena keterbatasan panjang respons dari model. Silakan coba lagi, atau gunakan mode yang lebih ringkas.'
-        });
-      }
-
-      const wordCount = responseText.split(/\s+/).filter(Boolean).length;
-      const readingTime = Math.max(1, Math.round(wordCount / 200));
-      return res.json({
-        markdown: responseText,
-        readyScore: 75,
-        scoreReasons: {
-          passed: ['Dokumen berhasil digenerasi'],
-          warnings: ['AI tidak mengembalikan struktur JSON terformat, hasil mentah ditampilkan.']
-        },
-        wordCount,
-        readingTime,
-        usedKeyIndex: successfulKey.index,
-        usedModel: successfulModel
-      });
-    }
+    const result = await generatePRDInChunks(form, rawUserKeys, selectedModel);
+    return res.status(result.statusCode).json(result.data);
 
   } catch (globalErr: any) {
     console.error('[CANVAS-PRD-AI] [FATAL-ERROR] Global error pada api route:', globalErr);
