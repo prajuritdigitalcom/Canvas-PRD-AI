@@ -8,7 +8,7 @@ import { apiKeyManager, ManagedKey, classifyGeminiError } from '../apiKeyManager
 import { PRD_CHUNKS, PRDChunkDefinition, CANONICAL_PRD_HEADERS } from './chunkDefinitions.js';
 import { buildChunkSystemPrompt, buildChunkUserPrompt } from './chunkPrompts.js';
 import { validateChunk, validateFinalDocument } from './validators.js';
-import { buildCompactContextSummaryText } from './contextSummary.ts';
+import { buildCompactContextSummaryText } from './contextSummary.js';
 import { DESIGN_MOODS, WEBSITE_TYPE_TO_MOOD_MAP } from '../../src/data/designMoods.js';
 
 const DEFAULT_MODEL_CHAIN: string[] = process.env.GEMINI_MODEL_CHAIN
