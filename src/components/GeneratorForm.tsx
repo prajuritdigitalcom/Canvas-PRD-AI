@@ -4,6 +4,7 @@ import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, Prefe
 import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
 import { DEMO_BRIEFS } from '../data/demoBriefs';
 import { GENERATION_PROFILES } from '../data/generationProfiles';
+import { analyzeProjectColorPalette } from '../utils/colorUtils';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
   Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight,
@@ -86,11 +87,6 @@ const ANALYSIS_STEPS = [
   'Menentukan kebutuhan teknis',
   'Menyusun PRD final'
 ];
-
-function extractHex(token: string): string | null {
-  const match = token.match(/#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})/);
-  return match ? match[0] : null;
-}
 
 export default function GeneratorForm({
   formState,
@@ -793,9 +789,11 @@ export default function GeneratorForm({
                   {/* 8 Kartu Tema */}
                   {DESIGN_MOODS.map((mood) => {
                     const isSelected = formState.designMoodId === mood.id;
-                    const swatches = mood.rules.colorContrastPairs
-                      .map(p => extractHex(p.backgroundToken))
-                      .filter((hex): hex is string => hex !== null);
+                    const densityBadge = mood.recommendedDensity === 'minimal' 
+                      ? '🍃 Minimal' 
+                      : mood.recommendedDensity === 'rich' 
+                        ? '⚡ Rich' 
+                        : '⚖️ Standard';
 
                     return (
                       <div
@@ -815,16 +813,10 @@ export default function GeneratorForm({
                             <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>
                               {mood.name}
                             </span>
-                            {/* Swatch dots */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              {swatches.map((hex, idx) => (
-                                <span
-                                  key={idx}
-                                  className="w-3.5 h-3.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs"
-                                  style={{ backgroundColor: hex }}
-                                />
-                              ))}
-                            </div>
+                            {/* Density badge */}
+                            <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-850 text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-750 shrink-0">
+                              {densityBadge}
+                            </span>
                           </div>
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                             {mood.tagline}
@@ -941,6 +933,50 @@ export default function GeneratorForm({
                         </div>
                       </div>
                     </div>
+
+                    {/* Dynamic WCAG Contrast Preview */}
+                    {!formState.autoGenerateColors && (() => {
+                      const analysis = analyzeProjectColorPalette(formState.primaryColor, formState.secondaryColor, formState.accentColor);
+                      return (
+                        <div className="pt-2.5 pb-1 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400">
+                            <span className="font-semibold flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                              <ShieldCheck className="w-3.5 h-3.5" /> Kontras Aksesibilitas WCAG 2.1
+                            </span>
+                            <span className="font-mono text-[9px] text-zinc-400">Auto-calculated</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                            <div className="p-1.5 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center text-center">
+                              <span className="text-[9px] text-zinc-400 font-mono">Teks Primary</span>
+                              <span className="font-bold font-mono text-[10px] text-zinc-700 dark:text-zinc-300">
+                                {analysis.primary.isDark ? 'Putih #FFF' : 'Gelap #0F172A'}
+                              </span>
+                              <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                {analysis.primary.bestContrastRatio}:1 (AAA)
+                              </span>
+                            </div>
+                            <div className="p-1.5 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center text-center">
+                              <span className="text-[9px] text-zinc-400 font-mono">Teks Secondary</span>
+                              <span className="font-bold font-mono text-[10px] text-zinc-700 dark:text-zinc-300">
+                                {analysis.secondary.isDark ? 'Putih #FFF' : 'Gelap #0F172A'}
+                              </span>
+                              <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                {analysis.secondary.bestContrastRatio}:1 (AAA)
+                              </span>
+                            </div>
+                            <div className="p-1.5 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center text-center">
+                              <span className="text-[9px] text-zinc-400 font-mono">Teks CTA Accent</span>
+                              <span className="font-bold font-mono text-[10px] text-zinc-700 dark:text-zinc-300">
+                                {analysis.accent.isDark ? 'Putih #FFF' : 'Gelap #0F172A'}
+                              </span>
+                              <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                {analysis.accent.bestContrastRatio}:1 (AAA)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Auto Generate Checkbox */}

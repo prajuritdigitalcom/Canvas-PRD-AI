@@ -5,6 +5,7 @@
 import { ProjectFormState } from '../../src/types.js';
 import { PRDChunkDefinition } from './chunkDefinitions.js';
 import { DESIGN_MOODS, DESIGN_DENSITIES, DesignMoodRule, DesignDensityRule } from '../../src/data/designMoods.js';
+import { analyzeProjectColorPalette } from '../../src/utils/colorUtils.js';
 
 export function buildChunkSystemPrompt(
   chunkDef: PRDChunkDefinition,
@@ -54,7 +55,7 @@ CRITICAL CHUNK SCOPE RULES:
 
 function renderTokensOnlyBlock(mood: DesignMoodRule): string {
   const t = mood.rules.typographyScale;
-  return `## FONDASI DESAIN TERKUNCI
+  return `## FONDASI TIPOGRAFI & SKALA RESPONSIF
 Mood terpilih: **${mood.name}** — ${mood.tagline}
 
 **Typography Scale (WAJIB disalin apa adanya ke section "Typography"):**
@@ -67,21 +68,17 @@ Mood terpilih: **${mood.name}** — ${mood.tagline}
 | Body Large | ${t.bodyLarge.desktop} | ${t.bodyLarge.tablet} | ${t.bodyLarge.mobile} |
 | Body | ${t.body.desktop} | ${t.body.tablet} | ${t.body.mobile} |
 | Body Small | ${t.bodySmall.desktop} | ${t.bodySmall.tablet} | ${t.bodySmall.mobile} |
-| Caption | ${t.caption.desktop} | ${t.caption.tablet} | ${t.caption.mobile} |
-
-**Color Contrast Pairs (WAJIB disalin apa adanya ke section "Color Palette"):**
-${mood.rules.colorContrastPairs.map(p => `- ${p.backgroundToken} → ${p.textToken} (${p.usage})`).join('\n')}`;
+| Caption | ${t.caption.desktop} | ${t.caption.tablet} | ${t.caption.mobile} |`;
 }
 
 function renderFullDesignSystemBlock(mood: DesignMoodRule, density: DesignDensityRule): string {
   const tokensBlock = renderTokensOnlyBlock(mood);
   return `${tokensBlock}
 
-**Layout & Visual Identity:**
+**Layout & Visual Identity (Bentuk, Struktur & Spacing):**
 - Layout Pattern: ${mood.rules.layoutPattern}
 - Border Radius: ${mood.rules.borderRadius}
 - Shadow: ${mood.rules.shadow}
-- Color Approach: ${mood.rules.colorApproach}
 - Typography Style: ${mood.rules.typography}
 - Imagery: ${mood.rules.imagery}
 - Forbidden: ${mood.rules.forbidden.join('; ')}
@@ -90,6 +87,36 @@ function renderFullDesignSystemBlock(mood: DesignMoodRule, density: DesignDensit
 - Padding: Desktop ${density.sectionPaddingDesktop}, Tablet ${density.sectionPaddingTablet}, Mobile ${density.sectionPaddingMobile}
 - Grid: ${density.itemsPerGridRow}
 - Motion Pacing: ${density.animationLevel}`;
+}
+
+function renderColorSystemBlock(form: ProjectFormState, mood: DesignMoodRule): string {
+  const analysis = analyzeProjectColorPalette(form.primaryColor, form.secondaryColor, form.accentColor);
+  
+  const primaryType = analysis.primary.isDark ? 'GELAP' : 'TERANG';
+  const secondaryType = analysis.secondary.isDark ? 'GELAP' : 'TERANG';
+  const accentType = analysis.accent.isDark ? 'GELAP' : 'TERANG';
+
+  return `## SISTEM WARNA & ATURAN KONTRAS (WAJIB — SATU-SATUNYA SUMBER NILAI WARNA)
+Sumber warna pada PRD ini DIKUNCI 100% mengikuti input Section 4 (bukan dari tema):
+- **Primary Color:** \`${analysis.primary.hex}\` (Tergolong ${primaryType}, Relative Luminance: ${analysis.primary.luminance})
+  - Pasangan Teks Kontras Wajib jika dijadikan Latar: **${analysis.primary.recommendedTextLabel}** (Rasio Kontras: ${analysis.primary.bestContrastRatio}:1)
+- **Secondary Color:** \`${analysis.secondary.hex}\` (Tergolong ${secondaryType}, Relative Luminance: ${analysis.secondary.luminance})
+  - Pasangan Teks Kontras Wajib jika dijadikan Latar: **${analysis.secondary.recommendedTextLabel}** (Rasio Kontras: ${analysis.secondary.bestContrastRatio}:1)
+- **Accent Color:** \`${analysis.accent.hex}\` (Tergolong ${accentType}, Relative Luminance: ${analysis.accent.luminance})
+  - Pasangan Teks Kontras Wajib jika dijadikan Tombol CTA / Badge: **${analysis.accent.recommendedTextLabel}** (Rasio Kontras: ${analysis.accent.bestContrastRatio}:1)
+- **Auto Generate Colors:** ${form.autoGenerateColors ? 'Ya (AI boleh menyempurnakan palet harmonis turunan berdasarkan brief brand bisnis, namun WAJIB memenuhi rasio kontras WCAG di bawah)' : 'Tidak (WAJIB menggunakan persis nilai hex input pengunjung di atas)'}
+- **Gaya Aplikasi Warna Tema (${mood.name}):** ${mood.rules.colorApproach}
+  *(PENTING: Tema Section 3 HANYA memandu GAYA visual & hierarki penempatan warna — BUKAN sumber nilai hex warna).*
+
+### ATURAN WAJIB SISTEM WARNA & KONTRAS:
+1. **SUMBER WARNA TUNGGAL:** Seluruh Color Palette, tombol, CTA, kartu, link, border, dan elemen berwarna pada PRD HANYA boleh diturunkan dari 3 warna di atas (ditambah warna netral #FFFFFF, #F8FAFC, #0F172A untuk surface dasar dan teks pembaca). DILARANG KERAS mengambil atau menyalin kode warna hex bawaan dari tema manapun.
+2. **ATURAN KONTRAS WCAG (PRIORITAS TERTINGGI — NON-NEGOTIABLE):**
+   - Keterbacaan teks adalah mutlak. Setiap kali sebuah warna dipakai sebagai LATAR BELAKANG:
+     - Jika Latar GELAP (termasuk Dark Canvas / Dark Hero / Dark CTA) → Teks di atasnya WAJIB warna TERANG (#FFFFFF / #F8FAFC).
+     - Jika Latar TERANG (termasuk Light Canvas / White Card / Muted Section) → Teks di atasnya WAJIB warna GELAP (#0F172A / #18181B).
+   - Aturan ini berlaku otomatis tanpa terkecuali, bahkan jika warna teks bukan merupakan salah satu dari 3 warna pilihan klien.
+3. **PANDUAN ROLE & KONTRAS PADA SECTION COLOR PALETTE:**
+${mood.rules.colorContrastPairs.map(p => `   - **${p.role}** (${p.backgroundUsage}): ${p.contrastRule}`).join('\n')}`;
 }
 
 function formatDesignSystemBlock(moodId: string, densityId: string): string {
@@ -119,7 +146,9 @@ export function buildChunkUserPrompt(
   }
   const goalWebsiteStr = resolvedGoalsList.length > 0 ? resolvedGoalsList.join(', ') : 'Not specified';
 
+  const mood = DESIGN_MOODS.find(m => m.id === resolvedDesign.moodId) || DESIGN_MOODS[0];
   const designSystemBlock = formatDesignSystemBlock(resolvedDesign.moodId, resolvedDesign.densityId);
+  const colorSystemBlock = renderColorSystemBlock(form, mood);
 
   // SEO & Meta tags specifications
   const seoDirectives: string[] = [];
@@ -160,10 +189,11 @@ ${form.referenceInformation || 'No raw reference text provided.'}
 ## CONTEXT FROM PREVIOUS GENERATED CHUNKS (STRICTLY MAINTAIN CONSISTENCY WITH THIS)
 ${contextSummaryText}
 
-## DESIGN SYSTEM TOKENS & PREFERENCES
+${colorSystemBlock}
+
+## DESIGN SYSTEM TOKENS & VISUAL STRUCTURE
 ${designSystemBlock}
 
-- **Primary Color:** ${form.primaryColor} | **Secondary Color:** ${form.secondaryColor} | **Accent Color:** ${form.accentColor}
 - **Heading Font:** ${form.headingFont} | **Body Font:** ${form.bodyFont}
 - **Animation Level:** ${form.animationLevel} | **Illustration Style:** ${form.illustrationStyle} | **Tone:** ${form.preferredTone}
 - **AI Mode:** ${form.aiMode} | **Creativity:** ${form.creativitySlider}% | **Reasoning:** ${form.reasoningLevel}

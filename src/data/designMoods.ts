@@ -5,9 +5,9 @@ export interface ResponsiveFontToken {
 }
 
 export interface ColorContrastPair {
-  backgroundToken: string;
-  textToken: string;
-  usage: string;
+  role: string;
+  backgroundUsage: string;
+  contrastRule: string;
 }
 
 export interface DesignMoodRule {
@@ -63,7 +63,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Whitespace dominan, satu CTA jelas per section, grid 12-kolom presisi',
       borderRadius: 'Konsisten kecil (4–8px)',
       shadow: 'Sangat tipis, hanya untuk elevasi kartu penting',
-      colorApproach: 'Palet netral, 1 warna aksen dominan + 1–2 netral, tanpa gradient ramai',
+      colorApproach: 'Palet netral bersih, 1 warna aksen dominan dari brand + warna netral pendukung, tanpa gradient ramai',
       typography: 'Sans-serif presisi, hierarki jelas, line-height lega',
       imagery: 'Foto asli berkualitas tinggi, bukan ilustrasi kartun/stok generik',
       forbidden: ['rounded-full berlebihan', 'lebih dari 1 warna aksen mencolok', 'animasi berlebihan'],
@@ -78,9 +78,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Light (#FFFFFF)', textToken: 'Text Dark (#0F172A)', usage: 'Latar utama halaman & kartu' },
-        { backgroundToken: 'Surface Muted (#F8FAFC)', textToken: 'Text Dark (#0F172A)', usage: 'Section alternatif / pemisah' },
-        { backgroundToken: 'Surface Dark (#0F172A)', textToken: 'Text Light (#F8FAFC)', usage: 'Footer & CTA Banner utama' },
+        { role: 'Latar Utama', backgroundUsage: 'Latar utama halaman & kartu standar (Surface Light)', contrastRule: 'Latar Terang → Teks Gelap Kontras (#0F172A)' },
+        { role: 'Section Alternatif', backgroundUsage: 'Section pemisah / container pendukung (Surface Muted)', contrastRule: 'Latar Terang Muted → Teks Gelap Kontras (#0F172A)' },
+        { role: 'Footer & CTA Utama', backgroundUsage: 'Footer & Banner CTA kontras tinggi (Surface Dark / Brand)', contrastRule: 'Latar Gelap → Teks Terang Kontras (#FFFFFF / #F8FAFC)' },
       ],
     },
     referenceExamples: [
@@ -100,7 +100,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Grid eksplisit, elemen boleh sedikit asimetris, struktur terlihat',
       borderRadius: 'Nyaris 0 (sharp corner), maksimal 2–4px',
       shadow: 'Hard shadow offset solid (bukan soft-blur)',
-      colorApproach: '2–3 warna solid kontras tinggi, tanpa gradient/pastel',
+      colorApproach: '2–3 warna solid kontras tinggi dari brand, tanpa gradient/pastel lembut',
       typography: 'Font tebal/besar, sesekali monospace untuk aksen',
       imagery: 'Ilustrasi flat/geometris atau foto filter kontras tinggi',
       forbidden: ['rounded-xl/2xl di komponen manapun', 'soft drop-shadow', 'palet pastel lembut'],
@@ -115,9 +115,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px bold', tablet: '12px bold', mobile: '12px bold' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Light (#FFFDF5)', textToken: 'Text Dark (#000000)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Accent Yellow (#FFDE59)', textToken: 'Text Dark (#000000)', usage: 'Kartu sorotan & CTA' },
-        { backgroundToken: 'Surface Dark (#000000)', textToken: 'Text Light (#FFFFFF)', usage: 'Hero / Section kontras tinggi' },
+        { role: 'Latar Utama', backgroundUsage: 'Latar dasar halaman kontras tinggi', contrastRule: 'Latar Terang/Putih → Teks Hitam Solid (#000000)' },
+        { role: 'Kartu Sorotan & CTA', backgroundUsage: 'Elemen penarik perhatian menggunakan warna aksen brand', contrastRule: 'Teks wajib kontras terhadap warna aksen brand' },
+        { role: 'Section Kontras', backgroundUsage: 'Section penutup / hero gelap dengan kontras pekat', contrastRule: 'Latar Gelap → Teks Putih Terang (#FFFFFF)' },
       ],
     },
     referenceExamples: [
@@ -137,7 +137,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Kotak-kotak modular ukuran bervariasi menyusun fitur dalam satu grid per section',
       borderRadius: 'Sedang-besar (12–24px) khusus tiap "kotak"',
       shadow: 'Lembut hanya di border kotak, elevasi ringan',
-      colorApproach: 'Latar netral + 1–2 kotak beraksen warna kuat sebagai focal point',
+      colorApproach: 'Latar netral dengan 1–2 kotak bento beraksen warna brand kuat sebagai focal point visual',
       typography: 'Sans-serif modern, ukuran bervariasi sesuai ukuran kotak',
       imagery: 'Ikon custom, mini-chart/preview UI, screenshot produk di dalam kotak',
       forbidden: ['grid kotak berukuran seragam semua', 'mengabaikan reflow ke single-column di mobile'],
@@ -152,9 +152,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Light (#FFFFFF)', textToken: 'Text Dark (#09090B)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Subtly Gray (#F4F4F5)', textToken: 'Text Dark (#09090B)', usage: 'Kotak bento standar' },
-        { backgroundToken: 'Surface Accent Dark (#18181B)', textToken: 'Text Light (#FAFAFA)', usage: 'Kotak bento highlight / CTA' },
+        { role: 'Latar Grid', backgroundUsage: 'Latar kanvas pembungkus kotak bento', contrastRule: 'Latar Terang → Teks Gelap (#09090B)' },
+        { role: 'Kotak Bento Standar', backgroundUsage: 'Kotak modul fitur standar dengan latar netral halus', contrastRule: 'Latar Muted → Teks Gelap (#09090B)' },
+        { role: 'Kotak Bento Highlight', backgroundUsage: 'Kotak modul unggulan / CTA menggunakan warna brand/aksen', contrastRule: 'Teks otomatis menyesuaikan kontras warna brand' },
       ],
     },
     referenceExamples: [
@@ -174,7 +174,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Tipografi besar sebagai elemen visual utama, narasi terungkap bertahap saat scroll',
       borderRadius: 'Minimal, fokus ke garis pembatas tipis',
       shadow: 'Nyaris tidak ada — mengandalkan garis/divider dan whitespace',
-      colorApproach: 'Monokrom/duotone, sangat sedikit warna mencolok',
+      colorApproach: 'Nuansa monokromatik / duotone terkurasi, aksen warna brand digunakan sangat selektif dan elegan',
       typography: 'Serif tebal heading + sans-serif body, ukuran heading sangat besar',
       imagery: 'Foto editorial berkualitas tinggi, full-width di antara blok teks',
       forbidden: ['layout kotak-kotak/card grid ala bento', 'warna cerah/saturasi tinggi lebih dari 1 aksen'],
@@ -189,9 +189,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Cream (#FAFAFA)', textToken: 'Text Charcoal (#1C1917)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Soft Beige (#F5F5F4)', textToken: 'Text Charcoal (#1C1917)', usage: 'Kutipan & Blok Narasi' },
-        { backgroundToken: 'Surface Dark Espresso (#1C1917)', textToken: 'Text Warm Cream (#FAFAFA)', usage: 'Header / Footer kontras' },
+        { role: 'Latar Bacaan', backgroundUsage: 'Latar utama halaman berfokus kenyamanan membaca', contrastRule: 'Latar Terang/Cream → Teks Charcoal Gelap (#1C1917)' },
+        { role: 'Blok Kutipan & Narasi', backgroundUsage: 'Container kutipan dan cerita brand', contrastRule: 'Latar Lembut → Teks Charcoal (#1C1917)' },
+        { role: 'Header / Footer Elegan', backgroundUsage: 'Header & Footer kontras berwibawa', contrastRule: 'Latar Gelap → Teks Terang (#FAFAFA)' },
       ],
     },
     referenceExamples: [
@@ -211,7 +211,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Bentuk melengkung asimetris (blob) sebagai dekorasi, bukan grid kaku',
       borderRadius: 'Besar dan tidak seragam (rounded-3xl atau custom blob)',
       shadow: 'Lembut dan hangat (sedikit tinted, bukan abu netral)',
-      colorApproach: 'Warna cerah hangat (bukan neon), 2–3 warna ceria yang tetap harmonis',
+      colorApproach: 'Warna brand diaplikasikan hangat dan ceria (bukan neon), kombinasi harmonis yang ramah',
       typography: 'Sans-serif membulat/friendly, sesekali handwritten untuk aksen',
       imagery: 'Ilustrasi custom playful, foto candid/lifestyle asli',
       forbidden: ['grid kotak tegas/simetris sempurna ala korporat', 'palet monokrom/dingin'],
@@ -226,9 +226,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px bold', tablet: '12px bold', mobile: '12px bold' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Organic Light (#FFFBEB)', textToken: 'Text Warm Dark (#292524)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Soft Peach (#FFEDD5)', textToken: 'Text Warm Dark (#292524)', usage: 'Kartu produk & fitur' },
-        { backgroundToken: 'Surface Dark Organic (#292524)', textToken: 'Text Light (#FFFBEB)', usage: 'Footer & CTA utama' },
+        { role: 'Latar Organik', backgroundUsage: 'Latar dasar halaman hangat dan bersahabat', contrastRule: 'Latar Terang Hangat → Teks Warm Dark (#292524)' },
+        { role: 'Kartu Produk & Fitur', backgroundUsage: 'Container interaktif dengan sudut membulat', contrastRule: 'Latar Lembut → Teks Warm Dark (#292524)' },
+        { role: 'Footer & CTA Ceria', backgroundUsage: 'Footer dan tombol aksi brand', contrastRule: 'Teks otomatis kontras terhadap latar warna brand' },
       ],
     },
     referenceExamples: [
@@ -248,7 +248,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Layar gelap dominan, elemen penting disorot dengan spacing besar & glow tipis',
       borderRadius: 'Kecil-sedang, presisi, konsisten',
       shadow: 'Glow effect tipis (bukan shadow gelap standar) di elemen highlight',
-      colorApproach: 'Latar gelap (charcoal/near-black) + aksen metalik emas/tembaga atau jewel-tone',
+      colorApproach: 'Nuansa kanvas gelap/obsidian elegan dengan aksen warna brand berkesan premium/eksklusif',
       typography: 'Serif elegan atau sans-serif tipis (light weight), tracking lebar di heading',
       imagery: 'Foto grading gelap/moody, detail material premium',
       forbidden: ['latar putih/terang di section utama', 'warna aksen cerah/pastel'],
@@ -263,9 +263,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Dark Obsidian (#0B0F17)', textToken: 'Text Metallic Light (#F1F5F9)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Elevated Dark (#1E293B)', textToken: 'Text Light (#F8FAFC)', usage: 'Kartu & kontainer sorotan' },
-        { backgroundToken: 'Surface Accent Gold (#D97706)', textToken: 'Text Dark Obsidian (#0B0F17)', usage: 'CTA & tombol utama' },
+        { role: 'Kanvas Gelap Mewah', backgroundUsage: 'Latar dasar obsidian/charcoal gelap', contrastRule: 'Latar Gelap → Teks Metallic Light (#F1F5F9)' },
+        { role: 'Kartu Elevasi Gelap', backgroundUsage: 'Kartu dan kontainer fitur melayang gelap', contrastRule: 'Latar Gelap → Teks Light (#F8FAFC)' },
+        { role: 'CTA & Tombol Brand', backgroundUsage: 'Tombol aksi utama menggunakan warna aksen brand klien', contrastRule: 'Teks wajib kontras terhadap warna aksen brand' },
       ],
     },
     referenceExamples: [
@@ -285,7 +285,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Grid tegas dengan foto proses/hasil kerja besar sebagai bukti kredibilitas (before-after, progres proyek) — bukan ilustrasi abstrak',
       borderRadius: 'Kecil-sedang (6–12px), terasa presisi seperti hasil konstruksi rapi',
       shadow: 'Medium solid untuk kesan material pada card, bukan shadow tipis minimalis maupun hard-shadow brutalist',
-      colorApproach: 'Earth-tone (terracotta/brick, wood brown, charcoal/steel) + 1 warna aksen safety (oranye/kuning) khusus CTA',
+      colorApproach: 'Warna brand diaplikasikan solid dan tegas, aksen warna khusus difokuskan pada tombol CTA utama',
       typography: 'Sans-serif tegas/berat untuk heading (kesan kokoh), sans-serif reguler untuk body',
       imagery: 'Foto dokumentasi proyek asli, before-after, detail material/tekstur (kayu, semen, kabinet) — bukan foto stok generik',
       forbidden: ['ilustrasi flat kartun untuk hero utama', 'palet pastel lembut', 'foto stok generik orang berjabat tangan dengan gradient overlay'],
@@ -300,9 +300,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Light Warm (#FAF7F2)', textToken: 'Text Charcoal (#292524)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Brick Accent (#C2410C)', textToken: 'Text Light (#FFF7ED)', usage: 'Badge & CTA khusus' },
-        { backgroundToken: 'Surface Dark Steel (#1C1917)', textToken: 'Text Light Warm (#FAF7F2)', usage: 'Footer & Banner proyek' },
+        { role: 'Latar Material', backgroundUsage: 'Latar utama halaman bertekstur kokoh dan bersih', contrastRule: 'Latar Terang → Teks Charcoal Gelap (#292524)' },
+        { role: 'Badge & CTA Pekerjaan', backgroundUsage: 'Tombol aksi dan label sorotan proyek', contrastRule: 'Teks wajib kontras terhadap warna aksen brand' },
+        { role: 'Footer & Banner Proyek', backgroundUsage: 'Banner penutup dan footer kokoh', contrastRule: 'Latar Gelap Steel → Teks Light (#FAF7F2)' },
       ],
     },
     referenceExamples: [
@@ -322,7 +322,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Struktur simetris konservatif, hierarki jelas dan konvensional, lambang/sertifikasi ditonjolkan',
       borderRadius: 'Minimal (0–4px), kesan institusional',
       shadow: 'Sangat halus, hanya pemisah kartu dokumen/berita',
-      colorApproach: 'Warna solid formal (navy, hijau tua, maroon institusional) + putih, tanpa gradient',
+      colorApproach: 'Warna brand formal dan solid dipadu warna netral institusional yang kredibel dan berwibawa',
       typography: 'Serif untuk heading (kesan otoritas) atau sans-serif tegas formal, body sans-serif standar',
       imagery: 'Foto resmi/formal (fasilitas, dokumen, kegiatan), ikon lambang/badge — hindari foto kasual',
       forbidden: ['warna cerah playful', 'ilustrasi kartun', 'layout asimetris eksperimental'],
@@ -337,9 +337,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Light (#FFFFFF)', textToken: 'Text Navy (#1E293B)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Muted Formal (#F1F5F9)', textToken: 'Text Navy (#1E293B)', usage: 'Kartu dokumen & pengumuman' },
-        { backgroundToken: 'Surface Dark Navy (#0F1F3D)', textToken: 'Text Light (#F8FAFC)', usage: 'Header & Footer resmi' },
+        { role: 'Latar Institusional', backgroundUsage: 'Latar utama halaman formal dan bersih', contrastRule: 'Latar Putih/Terang → Teks Gelap Institusional (#1E293B)' },
+        { role: 'Kartu Dokumen & Berita', backgroundUsage: 'Container pengumuman dan modul informasi', contrastRule: 'Latar Muted Formal → Teks Gelap (#1E293B)' },
+        { role: 'Header & Footer Resmi', backgroundUsage: 'Header navigasi dan footer otoritas', contrastRule: 'Latar Gelap Formal → Teks Terang (#F8FAFC)' },
       ],
     },
     referenceExamples: [
@@ -359,7 +359,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Grid blok kaku dengan border hitam tebal (2px–4px), elemen saling tumpang tindih berani, label sticker/badge mencolok',
       borderRadius: '0px (sharp corner) atau rounded-none di semua container dan tombol',
       shadow: 'Hard offset shadow hitam solid (mis. shadow-[4px_4px_0px_#000000] atau [6px_6px_0px_#000000])',
-      colorApproach: 'Warna pop kontras tinggi (kuning neoklasik, magenta, hijau cyam) pada latar terang/krem pucat, dikunci border hitam pekat',
+      colorApproach: 'Warna brand pop kontras tinggi dikunci oleh border hitam pekat dan hard offset shadow',
       typography: 'Sans-serif tebal berciri khas (Space Grotesk / Unbounded) dipadu monospace untuk tag/label',
       imagery: 'Ilustrasi vektor mentah, dithered photo, cutout bergaya kolase dengan stroke hitam tebal',
       forbidden: ['soft blur drop-shadow', 'rounded-xl / rounded-full pada kartu', 'gradient halus pastel', 'layout minimalis sepi ornamen'],
@@ -374,9 +374,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px bold font-mono', tablet: '12px bold font-mono', mobile: '12px bold font-mono' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Surface Raw Cream (#FFFDF5)', textToken: 'Text Solid Black (#000000)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Surface Pop Yellow (#FFE600)', textToken: 'Text Solid Black (#000000)', usage: 'Kartu sorotan & CTA utama' },
-        { backgroundToken: 'Surface Electric Cyan (#00F0FF)', textToken: 'Text Solid Black (#000000)', usage: 'Badge & aksen sekunder' },
+        { role: 'Latar Blok Raw', backgroundUsage: 'Latar utama kanvas neobrutalist', contrastRule: 'Latar Terang → Teks Hitam Solid (#000000) dengan border tegas' },
+        { role: 'Kartu Sorotan & CTA', backgroundUsage: 'Kartu blok aksi menggunakan warna aksen brand', contrastRule: 'Teks wajib kontras terhadap warna aksen brand' },
+        { role: 'Badge & Aksen Sekunder', backgroundUsage: 'Sticker label dan elemen interaktif', contrastRule: 'Teks Solid Black (#000000) atau Putih sesuai kontras' },
       ],
     },
     referenceExamples: [
@@ -395,7 +395,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Kartu semi-transparan melayang di atas latar bertekstur/gradient bokeh lembut, border frosted tipis',
       borderRadius: 'Sedang-besar (16px–24px) dengan tepian berkilau halus',
       shadow: 'Soft glow ambient shadow dan inset highlight di tepi kartu',
-      colorApproach: 'Latar gelap/berwarna dengan overlay putih transparan (backdrop-blur-md / backdrop-blur-xl, bg-white/10 atau bg-black/40)',
+      colorApproach: 'Latar belakang dengan kartu semi-transparan (backdrop-blur), aksen warna brand berpendar pada tombol interaktif',
       typography: 'Sans-serif ultra-modern (Inter / Space Grotesk / Sora) dengan kontras tinggi',
       imagery: '3D glass render, elemen kristal transparan, ikon neon berpendar',
       forbidden: ['border hitam tebal', 'hard offset shadow solid', 'latar polos flat tanpa kedalaman/gradient/mesh'],
@@ -410,9 +410,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium', tablet: '12px medium', mobile: '12px medium' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Background Gradient Dark (#090D16 with Mesh Glow)', textToken: 'Text Crisp Light (#FFFFFF)', usage: 'Latar dasar halaman' },
-        { backgroundToken: 'Glass Card (rgba(255,255,255,0.08) + backdrop-blur)', textToken: 'Text Crisp Light (#F8FAFC)', usage: 'Kartu konten & panel fitur' },
-        { backgroundToken: 'Glass Accent Glow (rgba(59,130,246,0.25))', textToken: 'Text Pure White (#FFFFFF)', usage: 'CTA & elemen interaktif' },
+        { role: 'Latar Belakang Depth', backgroundUsage: 'Latar dasar kanvas berkedalaman dengan gradient/mesh halus', contrastRule: 'Latar Gelap/Deep → Teks Crisp Light (#FFFFFF)' },
+        { role: 'Kartu Glass Frosted', backgroundUsage: 'Kartu semi-transparan (backdrop-blur) mengambang', contrastRule: 'Teks Crisp Light (#F8FAFC) dengan kontras terbaca jelas' },
+        { role: 'CTA & Tombol Interaktif', backgroundUsage: 'Tombol aksi utama berbasis warna brand berpendar', contrastRule: 'Teks wajib kontras terhadap warna brand' },
       ],
     },
     referenceExamples: [
@@ -431,7 +431,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Pendaran cahaya aurora berwarna-warni mengalir lembut di latar belakang, memandu pandangan mata ke elemen utama',
       borderRadius: 'Besar dan halus (16px–28px atau rounded-3xl)',
       shadow: 'Colored ambient glow (shadow warna selaras dengan gradient aurora di sekitarnya)',
-      colorApproach: 'Perpaduan gradient mesh bernuansa cyan, violet, rose, dan emerald di atas latar obsidian/dark',
+      colorApproach: 'Pendaran cahaya gradient halus dari warna brand di latar belakang, memandu fokus ke CTA',
       typography: 'Sans-serif display futuristis dengan tracking sedikit renggang di heading',
       imagery: 'Cahaya berpendar, blob mesh gradient teranimasi halus, grafik abstrak berkilau',
       forbidden: ['border tebal kaku', 'hard shadow hitam', 'latar serba putih polos tanpa efek pendaran'],
@@ -446,9 +446,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px medium font-mono', tablet: '12px medium font-mono', mobile: '12px medium font-mono' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Deep Space Obsidian (#030712 with Aurora Mesh)', textToken: 'Text Pure Light (#F9FAFB)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Aurora Glow Container (#111827/80 + Cyan/Purple Mesh)', textToken: 'Text Light (#F3F4F6)', usage: 'Kartu sorotan & panggung hero' },
-        { backgroundToken: 'Gradient CTA (Linear Violet-to-Rose)', textToken: 'Text White (#FFFFFF)', usage: 'Tombol aksi utama' },
+        { role: 'Latar Kosmik Gelap', backgroundUsage: 'Latar utama gelap dengan pendaran gradient aurora', contrastRule: 'Latar Gelap Obsidian → Teks Pure Light (#F9FAFB)' },
+        { role: 'Panggung Fitur Aurora', backgroundUsage: 'Kartu sorotan dan container hero bernuansa pendaran', contrastRule: 'Latar Gelap Berpendar → Teks Light (#F3F4F6)' },
+        { role: 'Tombol Aksi Gradient', backgroundUsage: 'Tombol aksi utama menggunakan gradasi warna brand', contrastRule: 'Teks wajib kontras terhadap gradasi warna brand' },
       ],
     },
     referenceExamples: [
@@ -467,7 +467,7 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
       layoutPattern: 'Elemen kartu dan tombol 3D kenyal dengan gabungan inner-shadow dan outer-shadow lembut, terasa bisa ditekan',
       borderRadius: 'Sangat besar dan membulat (24px–36px atau rounded-3xl/full)',
       shadow: 'Ganda: inner shadow terang di atas + inner shadow gelap di bawah + soft outer drop shadow melayang',
-      colorApproach: 'Warna pastel kaya saturasi hangat (clay pink, soft mint, warm mustard, lavender), tidak terlalu mencolok',
+      colorApproach: 'Warna brand diaplikasikan pada elemen 3D kenyal dengan inner shadow lembut yang taktil',
       typography: 'Sans-serif membulat dan ramah (Quicksand / Nunito / Poppins)',
       imagery: 'Maskot 3D clay render, ikon 3D membulat kenyal, ilustrasi bergaya karakter tanah liat',
       forbidden: ['sudut tajam (rounded-none)', 'hard border hitam tebal', 'layout korporat kaku/dingin'],
@@ -482,9 +482,9 @@ export const DESIGN_MOODS: DesignMoodRule[] = [
         caption: { desktop: '12px bold', tablet: '12px bold', mobile: '12px bold' },
       },
       colorContrastPairs: [
-        { backgroundToken: 'Soft Clay Canvas (#F4F0EA)', textToken: 'Text Soft Charcoal (#2D3748)', usage: 'Latar utama halaman' },
-        { backgroundToken: 'Clay Pastel Card (#FFFFFF + Double Inner Shadow)', textToken: 'Text Soft Charcoal (#2D3748)', usage: 'Kartu konten 3D' },
-        { backgroundToken: 'Clay Coral Button (#FF7A00 3D Rounded)', textToken: 'Text Pure White (#FFFFFF)', usage: 'Tombol CTA kenyal' },
+        { role: 'Latar Lembut Taktil', backgroundUsage: 'Latar utama kanvas 3D clay halus', contrastRule: 'Latar Terang Pastel → Teks Soft Charcoal (#2D3748)' },
+        { role: 'Kartu Konten 3D', backgroundUsage: 'Kartu 3D membulat dengan double inner shadow', contrastRule: 'Latar Lembut 3D → Teks Soft Charcoal (#2D3748)' },
+        { role: 'Tombol CTA Kenyal', backgroundUsage: 'Tombol interaktif 3D kenyal berbasis warna aksen brand', contrastRule: 'Teks wajib kontras terhadap warna aksen brand' },
       ],
     },
     referenceExamples: [
