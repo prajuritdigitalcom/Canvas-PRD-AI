@@ -152,51 +152,53 @@ export async function generatePRDInChunks(
             });
 
             if (chunkDef.id === 'pageBreakdown' && chunkDef.subChunks) {
-              console.log(`[PRD-CHUNK] Generating Chunk "pageBreakdown" via dual sub-chunks architecture...`);
-              const subChunkMarkdowns: string[] = [];
-              let subChunksValid = true;
-              const subWarnings: string[] = [];
+              console.log(`[PRD-CHUNK] Generating Chunk "pageBreakdown" via dual sub-chunks architecture (PARALLEL)...`);
 
-              for (const subDef of chunkDef.subChunks) {
-                console.log(`[PRD-CHUNK] Generating sub-chunk "${subDef.id}" (${subDef.title})...`);
-                const subPrompt = buildChunkUserPrompt(
-                  { id: subDef.id, title: subDef.title, requiredHeaders: subDef.requiredHeaders, description: subDef.focusScope },
-                  form,
-                  resolvedDesign,
-                  contextSummaryText,
-                  `SCOPE FOCUS: ${subDef.focusScope}${extraFeedbackNote ? `\nNote: ${extraFeedbackNote}` : ''}`
-                );
+              const subChunkResults = await Promise.all(
+                chunkDef.subChunks.map(async (subDef) => {
+                  console.log(`[PRD-CHUNK] Generating sub-chunk "${subDef.id}" (${subDef.title})...`);
+                  const subPrompt = buildChunkUserPrompt(
+                    { id: subDef.id, title: subDef.title, requiredHeaders: subDef.requiredHeaders, description: subDef.focusScope },
+                    form,
+                    resolvedDesign,
+                    contextSummaryText,
+                    `SCOPE FOCUS: ${subDef.focusScope}${extraFeedbackNote ? `\nNote: ${extraFeedbackNote}` : ''}`
+                  );
 
-                const subResult = await ai.models.generateContent({
-                  model: modelName,
-                  contents: subPrompt,
-                  config: {
-                    systemInstruction,
-                    ...thinkingConfig,
-                    responseMimeType: 'application/json',
-                    responseSchema: {
-                      type: Type.OBJECT,
-                      properties: {
-                        chunkId: { type: Type.STRING },
-                        markdown: { type: Type.STRING },
-                        completedSections: { type: Type.ARRAY, items: { type: Type.STRING } }
-                      },
-                      required: ['chunkId', 'markdown', 'completedSections']
+                  const subResult = await ai.models.generateContent({
+                    model: modelName,
+                    contents: subPrompt,
+                    config: {
+                      systemInstruction,
+                      ...thinkingConfig,
+                      responseMimeType: 'application/json',
+                      responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                          chunkId: { type: Type.STRING },
+                          markdown: { type: Type.STRING },
+                          completedSections: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        required: ['chunkId', 'markdown', 'completedSections']
+                      }
                     }
+                  });
+
+                  const subParsed = JSON.parse((subResult.text || '').trim());
+                  const subMd = (subParsed.markdown || '').trim();
+                  const subVal = validateChunk({ ...subDef, description: subDef.focusScope }, subMd);
+
+                  if (!subVal.valid) {
+                    console.warn(`⚠️ [PRD-CHUNK] Sub-chunk "${subDef.id}" validation failed:`, subVal.warnings);
                   }
-                });
 
-                const subParsed = JSON.parse((subResult.text || '').trim());
-                const subMd = (subParsed.markdown || '').trim();
+                  return { id: subDef.id, md: subMd, valid: subVal.valid, warnings: subVal.warnings };
+                })
+              );
 
-                const subVal = validateChunk({ ...subDef, description: subDef.focusScope }, subMd);
-                if (!subVal.valid) {
-                  console.warn(`⚠️ [PRD-CHUNK] Sub-chunk "${subDef.id}" validation failed:`, subVal.warnings);
-                  subChunksValid = false;
-                  subWarnings.push(...subVal.warnings);
-                }
-                subChunkMarkdowns.push(subMd);
-              }
+              const subChunkMarkdowns = subChunkResults.map(r => r.md);
+              const subChunksValid = subChunkResults.every(r => r.valid);
+              const subWarnings = subChunkResults.flatMap(r => r.warnings || []);
 
               if (subChunksValid && subChunkMarkdowns.length === 2) {
                 const sub1 = subChunkMarkdowns[0];

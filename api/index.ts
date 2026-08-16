@@ -313,7 +313,7 @@ Based on the brief, determine:
 11. AI Assumptions: Suggest 3-5 assumptions made from the raw input.
 12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages, estimatedSections).
 13. Design Mood ID: Suggest one id from "${DESIGN_MOODS.map(m => m.id).join('", "')}".
-14. Generation Profile: Suggest one from "cepat", "seimbang", "analisis-mendalam", "dokumen-ekstensif". Pick "cepat" for very simple/brief drafts, "seimbang" as the standard default for most projects, "analisis-mendalam" if the business model is intricate/requires deep architectural reasoning, or "dokumen-ekstensif" if extensive multi-page documentation is explicitly requested.
+14. Generation Profile: Suggest one from "cepat", "seimbang", "analisis-mendalam". Pick "cepat" for very simple/brief drafts, "seimbang" as the standard default for most projects, or "analisis-mendalam" if the business model is intricate/requires deep architectural reasoning OR extensive multi-page documentation is explicitly requested.
 
 Output strictly in JSON matching the specified schema. All text in 'assumptions' and 'quickReview' must be in Indonesian or the requested project language.`,
               ...thinkingConfig,
@@ -368,7 +368,7 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                       metaDescription: { type: Type.STRING },
                       generationProfile: {
                         type: Type.STRING,
-                        description: `Salah satu dari: "cepat", "seimbang", "analisis-mendalam", "dokumen-ekstensif". Pilih "cepat" untuk brief sangat sederhana, "seimbang" sebagai default untuk kebanyakan kasus, "analisis-mendalam" jika bisnisnya kompleks/butuh strategi mendalam, "dokumen-ekstensif" jika user secara eksplisit minta dokumentasi sangat panjang & rinci.`
+                        description: `Salah satu dari: "cepat", "seimbang", "analisis-mendalam". Pilih "cepat" untuk brief sangat sederhana, "seimbang" sebagai default untuk kebanyakan kasus, atau "analisis-mendalam" jika bisnisnya kompleks/butuh strategi mendalam ATAU user secara eksplisit minta dokumentasi yang panjang & rinci.`
                       }
                     },
                     required: [

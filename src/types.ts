@@ -66,7 +66,7 @@ export type TypographyOption =
   | 'Lora'
   | 'Auto';
 
-export type GenerationProfile = 'cepat' | 'seimbang' | 'analisis-mendalam' | 'dokumen-ekstensif';
+export type GenerationProfile = 'cepat' | 'seimbang' | 'analisis-mendalam';
 
 export type AIMode = 'Quick' | 'Professional' | 'Enterprise';
 
