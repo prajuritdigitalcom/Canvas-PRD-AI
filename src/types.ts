@@ -66,6 +66,8 @@ export type TypographyOption =
   | 'Lora'
   | 'Auto';
 
+export type GenerationProfile = 'cepat' | 'seimbang' | 'analisis-mendalam' | 'dokumen-ekstensif';
+
 export type AIMode = 'Quick' | 'Professional' | 'Enterprise';
 
 export type ReasoningLevel = 'Standard' | 'Advanced' | 'Maximum';
@@ -105,14 +107,13 @@ export interface AIAnalysisResult {
     bodyFont: TypographyOption;
     metaTitle: string;
     metaDescription: string;
-    aiMode: AIMode;
-    creativitySlider: number;
-    reasoningLevel: ReasoningLevel;
+    generationProfile: GenerationProfile;
   };
 }
 
 export interface ProjectFormState {
   generationMode?: GenerationMode;
+  generationProfile?: GenerationProfile;
   // Project Information
   projectName: string;
   websiteType: WebsiteType;
@@ -152,10 +153,10 @@ export interface ProjectFormState {
   metaDescription: string;
   gscVerificationTag: string;
 
-  // AI Preferences
-  aiMode: AIMode;
-  creativitySlider: number; // 0 to 100
-  reasoningLevel: ReasoningLevel;
+  // AI Preferences (derived from generationProfile)
+  aiMode?: AIMode;
+  creativitySlider?: number; // 0 to 100
+  reasoningLevel?: ReasoningLevel;
 
   // Extra Instruction
   extraInstruction: string;

@@ -4,11 +4,13 @@ import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
 import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
+import { resolveAIPreferencesFromProfile } from './data/generationProfiles';
 import { Sparkles, AlertCircle, Lock, Eye, EyeOff, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_FORM_STATE: ProjectFormState = {
   generationMode: 'auto',
+  generationProfile: 'seimbang',
   projectName: '',
   websiteType: 'Company Profile',
   targetAudience: [],
@@ -32,7 +34,7 @@ const DEFAULT_FORM_STATE: ProjectFormState = {
   metaDescription: '',
   gscVerificationTag: '',
   aiMode: 'Professional',
-  creativitySlider: 50,
+  creativitySlider: 60,
   reasoningLevel: 'Standard',
   extraInstruction: ''
 };
@@ -311,6 +313,9 @@ export default function App() {
       if (formState.generationMode === 'auto' && analysisResult) {
         Object.assign(finalForm, analysisResult.mappedFields);
       }
+
+      const resolvedPrefs = resolveAIPreferencesFromProfile(finalForm.generationProfile);
+      Object.assign(finalForm, resolvedPrefs);
 
       const res = await fetch('/api/generate-prd', {
         method: 'POST',

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult } from '../types';
+import { ProjectFormState, WebsiteType, AnimationLevel, IllustrationStyle, PreferredTone, TypographyOption, AIMode, ReasoningLevel, AIAnalysisResult, GenerationProfile } from '../types';
 import { DESIGN_MOODS, DESIGN_DENSITIES } from '../data/designMoods';
 import { DEMO_BRIEFS } from '../data/demoBriefs';
+import { GENERATION_PROFILES } from '../data/generationProfiles';
 import { 
   Sparkles, FileText, Globe, Eye, Palette, Search, Cpu, MessageSquare, 
   Plus, Trash2, Upload, HelpCircle, Check, Info, Lightbulb, AlertTriangle, ChevronRight,
@@ -147,9 +148,7 @@ export default function GeneratorForm({
         bodyFont: prev.bodyFont !== 'Inter' ? prev.bodyFont : analysisResult.mappedFields.bodyFont,
         metaTitle: prev.metaTitle.trim() !== '' ? prev.metaTitle : analysisResult.mappedFields.metaTitle,
         metaDescription: prev.metaDescription.trim() !== '' ? prev.metaDescription : analysisResult.mappedFields.metaDescription,
-        aiMode: prev.aiMode !== 'Professional' ? prev.aiMode : analysisResult.mappedFields.aiMode,
-        creativitySlider: prev.creativitySlider !== 60 ? prev.creativitySlider : analysisResult.mappedFields.creativitySlider,
-        reasoningLevel: prev.reasoningLevel !== 'Advanced' ? prev.reasoningLevel : analysisResult.mappedFields.reasoningLevel
+        generationProfile: prev.generationProfile !== 'seimbang' ? prev.generationProfile : analysisResult.mappedFields.generationProfile
       }));
     }
   };
@@ -402,9 +401,7 @@ export default function GeneratorForm({
                     bodyFont: prev.bodyFont !== 'Inter' ? prev.bodyFont : analysisResult.mappedFields.bodyFont,
                     metaTitle: prev.metaTitle.trim() !== '' ? prev.metaTitle : analysisResult.mappedFields.metaTitle,
                     metaDescription: prev.metaDescription.trim() !== '' ? prev.metaDescription : analysisResult.mappedFields.metaDescription,
-                    aiMode: prev.aiMode !== 'Professional' ? prev.aiMode : analysisResult.mappedFields.aiMode,
-                    creativitySlider: prev.creativitySlider !== 60 ? prev.creativitySlider : analysisResult.mappedFields.creativitySlider,
-                    reasoningLevel: prev.reasoningLevel !== 'Advanced' ? prev.reasoningLevel : analysisResult.mappedFields.reasoningLevel
+                    generationProfile: prev.generationProfile !== 'seimbang' ? prev.generationProfile : analysisResult.mappedFields.generationProfile
                   }));
                 } else {
                   setFormState(prev => ({ ...prev, generationMode: 'manual' }));
@@ -1103,65 +1100,57 @@ export default function GeneratorForm({
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                {/* Mode Pembuatan */}
-                <div className="space-y-2">
+              {/* Selector Profil Generasi */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Mode Pembuatan
+                    Profil Generasi
                   </label>
-                  <select
-                    value={formState.aiMode}
-                    onChange={e => setFormState(prev => ({ ...prev, aiMode: e.target.value as AIMode }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    <option value="Quick">Quick — Ringkas &amp; Cepat</option>
-                    <option value="Professional">Professional — Detail &amp; Komprehensif</option>
-                    <option value="Enterprise">Enterprise — Sangat Panjang &amp; Ekstensive</option>
-                  </select>
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    Optimasi Waktu &amp; Kedalaman Dokumen
+                  </span>
                 </div>
 
-                {/* Tingkat Penalaran */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Tingkat Penalaran
-                  </label>
-                  <select
-                    value={formState.reasoningLevel}
-                    onChange={e => setFormState(prev => ({ ...prev, reasoningLevel: e.target.value as ReasoningLevel }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    <option value="Standard">Standard — Analisis Standar</option>
-                    <option value="Advanced">Advanced — Analisis Mendalam</option>
-                    <option value="Maximum">Maximum — Analisis Ekstrem</option>
-                  </select>
-                </div>
-
-                {/* Tingkat Kreativitas */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
-                    Tingkat Kreativitas
-                  </label>
-                  <select
-                    value={formState.creativitySlider}
-                    onChange={e => setFormState(prev => ({ ...prev, creativitySlider: parseInt(e.target.value) }))}
-                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100"
-                  >
-                    <option value={0}>0% — Patuhi Referensi (Strict)</option>
-                    <option value={20}>20% — Konservatif</option>
-                    <option value={30}>30% — Presisi Moderat</option>
-                    <option value={50}>50% — Seimbang (Balanced)</option>
-                    <option value={60}>60% — Optimal &amp; Kreatif</option>
-                    <option value={70}>70% — Sangat Kreatif</option>
-                    <option value={80}>80% — Inovatif Tinggi</option>
-                    <option value={100}>100% — Inovasi Maksimal</option>
-                    {!([0, 20, 30, 50, 60, 70, 80, 100].includes(formState.creativitySlider)) && (
-                      <option value={formState.creativitySlider}>{formState.creativitySlider}% — Custom</option>
-                    )}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {GENERATION_PROFILES.map((profile) => {
+                    const isSelected = (formState.generationProfile || 'seimbang') === profile.id;
+                    return (
+                      <div
+                        key={profile.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setFormState(prev => ({ ...prev, generationProfile: profile.id }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setFormState(prev => ({ ...prev, generationProfile: profile.id }));
+                          }
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+                          isSelected
+                            ? 'bg-rose-50 dark:bg-rose-950/20 border-primary ring-1 ring-primary/20'
+                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-zinc-800 dark:text-zinc-100'}`}>
+                            {profile.label}
+                          </span>
+                          {isSelected && (
+                            <span className="text-[10px] font-bold text-primary flex items-center gap-1 font-mono shrink-0">
+                              <Check className="w-3.5 h-3.5 stroke-[3]" /> Terpilih
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                          {profile.description}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                 {/* Tingkat Animasi */}
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">

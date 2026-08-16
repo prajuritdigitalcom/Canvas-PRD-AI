@@ -67,9 +67,7 @@ Alamat kantor kami: Jl. Raya Darmo Permai III No. 88, Surabaya, Jawa Timur. Tele
       metaTitle: 'PT Arunika Konstruksi Utama — Jasa Kontraktor Bangunan & Konstruksi Terpercaya Surabaya',
       metaDescription: 'Kontraktor bangunan komersial & industri berpengalaman 13+ tahun di Surabaya. Bersertifikat SBU, tepat waktu, dan bergaransi. Konsultasi & RAB gratis.',
       gscVerificationTag: '',
-      aiMode: 'Professional',
-      creativitySlider: 70,
-      reasoningLevel: 'Standard',
+      generationProfile: 'seimbang',
       extraInstruction: 'Tampilkan angka statistik pencapaian (jumlah proyek, tahun berdiri, klien) dengan animasi counter di beranda. Sertakan section "Proses Kerja Kami" (5 tahap: Konsultasi, Survey, Desain & RAB, Pengerjaan, Serah Terima) dalam bentuk timeline horizontal. Semua CTA harus mengarah ke WhatsApp atau form pengajuan penawaran, bukan form generik.',
       generationMode: 'auto'
     }
@@ -130,9 +128,7 @@ Alamat toko/gudang kami di Jl. Kusumabangsa No. 12, Pekalongan, Jawa Tengah. Wha
       metaTitle: 'Rumah Batik Larasati — Batik Tulis & Batik Cap Asli Pengrajin Pekalongan & Solo',
       metaDescription: 'Belanja batik tulis dan batik cap asli langsung dari pengrajin Pekalongan & Solo. Kualitas terjamin, motif eksklusif, tersedia layanan custom seragam.',
       gscVerificationTag: '',
-      aiMode: 'Professional',
-      creativitySlider: 70,
-      reasoningLevel: 'Standard',
+      generationProfile: 'seimbang',
       extraInstruction: 'Desain kartu produk harus menonjolkan foto tekstur kain batik secara detail. Sertakan section "Kenapa Belanja di Rumah Batik Larasati" berisi 4 poin keunggulan dalam bentuk ikon. Checkout harus terasa singkat (maksimal 3 langkah) dan pastikan ada trust badge (garansi 100% original, gratis retur 3 hari).',
       generationMode: 'auto'
     }
@@ -199,9 +195,7 @@ Kontak kami: Email support@invoify.id, WhatsApp Business 0821-9900-1122 (untuk p
       metaTitle: 'Invoify — Aplikasi Invoice & Faktur Online Otomatis untuk UMKM dan Freelancer',
       metaDescription: 'Buat, kirim, dan lacak invoice dalam hitungan detik. Pengingat pembayaran otomatis, integrasi QRIS, dan laporan keuangan real-time. Coba gratis 14 hari.',
       gscVerificationTag: '',
-      aiMode: 'Professional',
-      creativitySlider: 70,
-      reasoningLevel: 'Standard',
+      generationProfile: 'seimbang',
       extraInstruction: 'Gunakan mockup dashboard produk (bisa placeholder browser frame) di hero section, bukan hanya teks. Section Pricing wajib ada badge "Paling Populer" pada paket Business. Sertakan micro-animation pada angka statistik traction (counter animation) di bagian khusus investor. Hindari istilah teknis SaaS yang rumit — gunakan bahasa yang mudah dipahami pemilik UMKM awam.',
       generationMode: 'auto'
     }

@@ -283,6 +283,7 @@ Based on the brief, determine:
 11. AI Assumptions: Suggest 3-5 assumptions made from the raw input.
 12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages, estimatedSections).
 13. Design Mood ID: Suggest one id from "${DESIGN_MOODS.map(m => m.id).join('", "')}".
+14. Generation Profile: Suggest one from "cepat", "seimbang", "analisis-mendalam", "dokumen-ekstensif". Pick "cepat" for very simple/brief drafts, "seimbang" as the standard default for most projects, "analisis-mendalam" if the business model is intricate/requires deep architectural reasoning, or "dokumen-ekstensif" if extensive multi-page documentation is explicitly requested.
 
 Output strictly in JSON matching the specified schema. All text in 'assumptions' and 'quickReview' must be in Indonesian or the requested project language.`,
               ...thinkingConfig,
@@ -335,15 +336,16 @@ Output strictly in JSON matching the specified schema. All text in 'assumptions'
                       bodyFont: { type: Type.STRING },
                       metaTitle: { type: Type.STRING },
                       metaDescription: { type: Type.STRING },
-                      aiMode: { type: Type.STRING, description: '"Quick", "Professional", "Enterprise"' },
-                      creativitySlider: { type: Type.INTEGER },
-                      reasoningLevel: { type: Type.STRING, description: '"Standard", "Advanced", "Maximum"' }
+                      generationProfile: {
+                        type: Type.STRING,
+                        description: `Salah satu dari: "cepat", "seimbang", "analisis-mendalam", "dokumen-ekstensif". Pilih "cepat" untuk brief sangat sederhana, "seimbang" sebagai default untuk kebanyakan kasus, "analisis-mendalam" jika bisnisnya kompleks/butuh strategi mendalam, "dokumen-ekstensif" jika user secara eksplisit minta dokumentasi sangat panjang & rinci.`
+                      }
                     },
                     required: [
                       'targetAudience', 'goalWebsite', 'designMoodId', 'animationLevel',
                       'illustrationStyle', 'preferredTone', 'primaryColor', 'secondaryColor',
                       'accentColor', 'autoGenerateColors', 'headingFont', 'bodyFont', 'metaTitle', 'metaDescription',
-                      'aiMode', 'creativitySlider', 'reasoningLevel'
+                      'generationProfile'
                     ]
                   }
                 },
