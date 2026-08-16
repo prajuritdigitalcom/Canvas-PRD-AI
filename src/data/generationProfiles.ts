@@ -39,8 +39,8 @@ export const GENERATION_PROFILES: GenerationProfileItem[] = [
     label: '📚 Dokumen Ekstensif',
     description: 'Butuh dokumen sangat panjang & rinci per section',
     aiMode: 'Enterprise',
-    reasoningLevel: 'Standard',
-    creativitySlider: 55
+    reasoningLevel: 'Advanced',
+    creativitySlider: 60
   }
 ];
 

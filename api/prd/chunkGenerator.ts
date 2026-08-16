@@ -13,7 +13,7 @@ import { DESIGN_MOODS, WEBSITE_TYPE_TO_MOOD_MAP } from '../../src/data/designMoo
 
 const DEFAULT_MODEL_CHAIN: string[] = process.env.GEMINI_MODEL_CHAIN
   ? process.env.GEMINI_MODEL_CHAIN.split(',').map(m => m.trim()).filter(Boolean)
-  : ['gemini-3.6-flash', 'gemini-3.5-flash'];
+  : ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 
 const MAX_CHUNK_ATTEMPTS = 2;
 const MAX_TOTAL_GENERATION_CALLS = 12;
@@ -151,6 +151,80 @@ export async function generatePRDInChunks(
               }
             });
 
+            if (chunkDef.id === 'pageBreakdown' && chunkDef.subChunks) {
+              console.log(`[PRD-CHUNK] Generating Chunk "pageBreakdown" via dual sub-chunks architecture...`);
+              const subChunkMarkdowns: string[] = [];
+              let subChunksValid = true;
+              const subWarnings: string[] = [];
+
+              for (const subDef of chunkDef.subChunks) {
+                console.log(`[PRD-CHUNK] Generating sub-chunk "${subDef.id}" (${subDef.title})...`);
+                const subPrompt = buildChunkUserPrompt(
+                  { id: subDef.id, title: subDef.title, requiredHeaders: subDef.requiredHeaders, description: subDef.focusScope },
+                  form,
+                  resolvedDesign,
+                  contextSummaryText,
+                  `SCOPE FOCUS: ${subDef.focusScope}${extraFeedbackNote ? `\nNote: ${extraFeedbackNote}` : ''}`
+                );
+
+                const subResult = await ai.models.generateContent({
+                  model: modelName,
+                  contents: subPrompt,
+                  config: {
+                    systemInstruction,
+                    ...thinkingConfig,
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                        chunkId: { type: Type.STRING },
+                        markdown: { type: Type.STRING },
+                        completedSections: { type: Type.ARRAY, items: { type: Type.STRING } }
+                      },
+                      required: ['chunkId', 'markdown', 'completedSections']
+                    }
+                  }
+                });
+
+                const subParsed = JSON.parse((subResult.text || '').trim());
+                const subMd = (subParsed.markdown || '').trim();
+
+                const subVal = validateChunk({ ...subDef, description: subDef.focusScope }, subMd);
+                if (!subVal.valid) {
+                  console.warn(`⚠️ [PRD-CHUNK] Sub-chunk "${subDef.id}" validation failed:`, subVal.warnings);
+                  subChunksValid = false;
+                  subWarnings.push(...subVal.warnings);
+                }
+                subChunkMarkdowns.push(subMd);
+              }
+
+              if (subChunksValid && subChunkMarkdowns.length === 2) {
+                const sub1 = subChunkMarkdowns[0];
+                const sub2Clean = subChunkMarkdowns[1].replace(/^#\s+Page-by-Page[^\n]*\n+/i, '');
+                const combinedSubMarkdown = `${sub1}\n\n${sub2Clean}`;
+                const combinedVal = validateChunk(chunkDef, combinedSubMarkdown);
+
+                if (combinedVal.valid) {
+                  console.log(`✅ [PRD-CHUNK] [SUB-SPLIT-SUCCESS] Page breakdown sub-chunks combined & validated! Chars: ${combinedSubMarkdown.length}`);
+                  completedChunksMarkdown.set(chunkDef.id, combinedSubMarkdown);
+                  apiKeyManager.markSuccess(keyCandidate.id);
+                  lastUsedKey = keyCandidate;
+                  lastUsedModel = modelName;
+                  chunkSuccess = true;
+                  keyHandled = true;
+                  break; // Success! Break model loop
+                } else {
+                  console.warn(`⚠️ [PRD-CHUNK] Combined pageBreakdown failed validation:`, combinedVal.warnings);
+                  extraFeedbackNote = `Sub-chunks combination failed: ${combinedVal.warnings.join('; ')}`;
+                  break;
+                }
+              } else {
+                console.warn(`⚠️ [PRD-CHUNK] One or more pageBreakdown sub-chunks failed:`, subWarnings);
+                extraFeedbackNote = `Sub-chunk failed: ${subWarnings.join('; ')}`;
+                break;
+              }
+            }
+
             const result = await ai.models.generateContent({
               model: modelName,
               contents: userPrompt,
@@ -188,59 +262,6 @@ export async function generatePRDInChunks(
               break; // Success! Break model loop
             } else {
               console.warn(`⚠️ [PRD-CHUNK] [INVALID] Chunk "${chunkDef.id}" failed validation. Warnings:`, valRes.warnings);
-
-              // If this is pageBreakdown and truncated, try sub-chunk splitting on next attempt
-              if (chunkDef.id === 'pageBreakdown' && chunkDef.subChunks && attempt === 1) {
-                console.log('[PRD-CHUNK] [SUB-SPLIT] Splitting Chunk "pageBreakdown" into sub-chunks...');
-                let subChunkSuccess = true;
-                const subChunkMarkdowns: string[] = [];
-
-                for (const subDef of chunkDef.subChunks) {
-                  console.log(`[PRD-CHUNK] Generating sub-chunk "${subDef.id}"...`);
-                  const subPrompt = buildChunkUserPrompt(
-                    { id: subDef.id, title: subDef.title, requiredHeaders: subDef.requiredHeaders, description: subDef.focusScope },
-                    form,
-                    resolvedDesign,
-                    contextSummaryText,
-                    `SCOPE FOCUS: ${subDef.focusScope}`
-                  );
-
-                  const subResult = await ai.models.generateContent({
-                    model: modelName,
-                    contents: subPrompt,
-                    config: {
-                      systemInstruction,
-                      ...thinkingConfig,
-                      responseMimeType: 'application/json',
-                      responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                          chunkId: { type: Type.STRING },
-                          markdown: { type: Type.STRING },
-                          completedSections: { type: Type.ARRAY, items: { type: Type.STRING } }
-                        },
-                        required: ['chunkId', 'markdown', 'completedSections']
-                      }
-                    }
-                  });
-
-                  const subParsed = JSON.parse((subResult.text || '').trim());
-                  subChunkMarkdowns.push(subParsed.markdown || '');
-                }
-
-                if (subChunkSuccess && subChunkMarkdowns.length > 0) {
-                  const combinedSubMarkdown = subChunkMarkdowns.join('\n\n');
-                  console.log(`✅ [PRD-CHUNK] [SUB-SPLIT-SUCCESS] Page breakdown sub-chunks combined! Chars: ${combinedSubMarkdown.length}`);
-                  completedChunksMarkdown.set(chunkDef.id, combinedSubMarkdown);
-                  apiKeyManager.markSuccess(keyCandidate.id);
-                  lastUsedKey = keyCandidate;
-                  lastUsedModel = modelName;
-                  chunkSuccess = true;
-                  keyHandled = true;
-                  break;
-                }
-              }
-
               // Set feedback for retry attempt
               extraFeedbackNote = `Previous attempt failed validation: ${valRes.warnings.join('; ')}. Ensure ALL assigned section headers (${chunkDef.requiredHeaders.join(', ')}) are fully written without cutting off!`;
               break; // Try next attempt for this chunk

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import { DESIGN_MOODS } from '../src/data/designMoods.js';
@@ -21,10 +22,31 @@ const passwordAttempts = new Map<string, { count: number; firstAttemptAt: number
 const MAX_PASSWORD_ATTEMPTS = 5;
 const PASSWORD_ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-// Primary -> Fallback Model Chain
+// Server Secret for HMAC Session Tokens
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+function generateSessionToken(): string {
+  const timestamp = Date.now().toString();
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(timestamp).digest('hex');
+  return `${timestamp}.${signature}`;
+}
+
+function verifySessionToken(token?: string): boolean {
+  if (!token) return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [timestamp, signature] = parts;
+  const expectedSignature = crypto.createHmac('sha256', SESSION_SECRET).update(timestamp).digest('hex');
+  if (signature !== expectedSignature) return false;
+  // Token valid for 7 days
+  const tokenAge = Date.now() - parseInt(timestamp, 10);
+  return tokenAge < 7 * 24 * 60 * 60 * 1000;
+}
+
+// Primary -> Fallback Model Chain (2026 Latest)
 const DEFAULT_MODEL_CHAIN: string[] = (process.env.GEMINI_MODEL_CHAIN
   ? process.env.GEMINI_MODEL_CHAIN.split(',').map(m => m.trim()).filter(Boolean)
-  : ['gemini-3.6-flash', 'gemini-3.5-flash']);
+  : ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']);
 
 // Map reasoning level to Google GenAI thinkingLevel enum
 const getThinkingConfig = (reasoningLevel?: string) => {
@@ -91,6 +113,13 @@ function extractUserApiKeys(req: express.Request, bodyUserApiKeys?: any): string
   return Array.from(new Set(apiKeys));
 }
 
+// Helper to check session authentication
+function checkSessionAuth(req: express.Request): boolean {
+  const token = (req.headers['x-session-token'] as string) ||
+    (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined);
+  return verifySessionToken(token);
+}
+
 // API status check
 app.get('/api/status', (req, res) => {
   res.json({
@@ -127,7 +156,8 @@ app.post('/api/verify-password', (req, res) => {
   const { password } = req.body;
   if (password === correctPassword) {
     passwordAttempts.delete(clientIp);
-    return res.json({ success: true });
+    const sessionToken = generateSessionToken();
+    return res.json({ success: true, sessionToken });
   }
 
   const current = passwordAttempts.get(clientIp) || { count: 0, firstAttemptAt: now };

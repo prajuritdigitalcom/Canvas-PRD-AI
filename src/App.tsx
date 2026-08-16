@@ -3,10 +3,20 @@ import Sidebar from './components/Sidebar';
 import GeneratorForm from './components/GeneratorForm';
 import OutputView from './components/OutputView';
 import SettingsView from './components/SettingsView';
+import AboutView from './components/AboutView';
 import { ProjectFormState, PRDGenerateResponse, AIAnalysisResult } from './types';
 import { resolveAIPreferencesFromProfile } from './data/generationProfiles';
 import { Sparkles, AlertCircle, Lock, Eye, EyeOff, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Helper for safe localStorage write
+function safeLocalStorageSet(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[STORAGE] Gagal menyimpan key "${key}" ke localStorage:`, err);
+  }
+}
 
 const DEFAULT_FORM_STATE: ProjectFormState = {
   generationMode: 'auto',
@@ -43,6 +53,9 @@ export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(() => {
     return sessionStorage.getItem('canvas_prd_unlocked') === 'true';
   });
+  const [sessionToken, setSessionToken] = useState<string>(() => {
+    return sessionStorage.getItem('canvas_prd_session_token') || '';
+  });
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
@@ -53,11 +66,11 @@ export default function App() {
   const [isDraftSaved, setIsDraftSaved] = useState(false);
 
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('canvas_prd_selected_model') || 'gemini-3.6-flash';
+    return localStorage.getItem('canvas_prd_selected_model') || 'gemini-3.7-flash';
   });
 
   useEffect(() => {
-    localStorage.setItem('canvas_prd_selected_model', selectedModel);
+    safeLocalStorageSet('canvas_prd_selected_model', selectedModel);
   }, [selectedModel]);
 
   const [formState, setFormState] = useState<ProjectFormState>(DEFAULT_FORM_STATE);
@@ -92,6 +105,10 @@ export default function App() {
       const data = await response.json();
       if (data.success) {
         sessionStorage.setItem('canvas_prd_unlocked', 'true');
+        if (data.sessionToken) {
+          sessionStorage.setItem('canvas_prd_session_token', data.sessionToken);
+          setSessionToken(data.sessionToken);
+        }
         setIsUnlocked(true);
         setPasswordError('');
       } else {
@@ -162,7 +179,7 @@ export default function App() {
   useEffect(() => {
     // Save form state to local storage whenever it changes
     const timeout = setTimeout(() => {
-      localStorage.setItem('canvas_prd_form_draft', JSON.stringify(formState));
+      safeLocalStorageSet('canvas_prd_form_draft', JSON.stringify(formState));
       setIsDraftSaved(true);
       
       // Clear status flag after a few seconds
@@ -178,7 +195,11 @@ export default function App() {
 
   // Save User API Keys to Session Storage
   useEffect(() => {
-    sessionStorage.setItem('canvas_prd_user_api_keys', JSON.stringify(userApiKeys));
+    try {
+      sessionStorage.setItem('canvas_prd_user_api_keys', JSON.stringify(userApiKeys));
+    } catch (e) {
+      console.warn('Gagal menyimpan user api keys:', e);
+    }
   }, [userApiKeys]);
 
   // 3. Reset Project Draft Action
@@ -228,12 +249,17 @@ export default function App() {
     }, 400);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-api-keys': JSON.stringify(userApiKeys)
+      };
+      if (sessionToken) {
+        headers['x-session-token'] = sessionToken;
+      }
+
       const res = await fetch('/api/analyze-brief', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-api-keys': JSON.stringify(userApiKeys)
-        },
+        headers,
         body: JSON.stringify({ form: formState, userApiKeys, selectedModel })
       });
 
@@ -251,7 +277,7 @@ export default function App() {
           await new Promise(resolve => setTimeout(resolve, 150));
         }
         setAnalysisResult(data);
-        localStorage.setItem('canvas_prd_analysis_result', JSON.stringify(data));
+        safeLocalStorageSet('canvas_prd_analysis_result', JSON.stringify(data));
         setIsAnalyzing(false);
       };
 
@@ -317,12 +343,17 @@ export default function App() {
       const resolvedPrefs = resolveAIPreferencesFromProfile(finalForm.generationProfile);
       Object.assign(finalForm, resolvedPrefs);
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-api-keys': JSON.stringify(userApiKeys)
+      };
+      if (sessionToken) {
+        headers['x-session-token'] = sessionToken;
+      }
+
       const res = await fetch('/api/generate-prd', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-api-keys': JSON.stringify(userApiKeys)
-        },
+        headers,
         body: JSON.stringify({ form: finalForm, userApiKeys, selectedModel })
       });
 
@@ -341,7 +372,7 @@ export default function App() {
         }
         
         setResponseData(data);
-        localStorage.setItem('canvas_prd_response_data', JSON.stringify(data));
+        safeLocalStorageSet('canvas_prd_response_data', JSON.stringify(data));
         
         setActiveTab('output');
         setIsGenerating(false);
@@ -556,6 +587,10 @@ export default function App() {
                   setSelectedModel={setSelectedModel}
                   onResetProject={handleResetProject}
                 />
+              )}
+
+              {activeTab === 'about' && (
+                <AboutView />
               )}
             </div>
           </main>

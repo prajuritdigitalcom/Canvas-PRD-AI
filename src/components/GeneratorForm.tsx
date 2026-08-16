@@ -635,8 +635,24 @@ export default function GeneratorForm({
               <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
                 Data Acuan <span className="text-primary">*</span> (Min 100 Karakter)
               </label>
-              <span className={`text-[10px] font-mono font-bold ${formState.referenceInformation.length >= 100 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {formState.referenceInformation.length} Karakter
+              <span className={`text-[10px] font-mono font-bold ${
+                formState.referenceInformation.length > 10000 
+                  ? 'text-rose-600' 
+                  : formState.referenceInformation.length > 9000 
+                    ? 'text-amber-500' 
+                    : formState.referenceInformation.length >= 100 
+                      ? 'text-emerald-500' 
+                      : 'text-rose-500'
+              }`}>
+                {formState.referenceInformation.length} / 10.000 Karakter {
+                  formState.referenceInformation.length > 10000 
+                    ? '(Melebihi Batas!)' 
+                    : formState.referenceInformation.length > 9000 
+                      ? '(Mendekati Batas)' 
+                      : formState.referenceInformation.length < 100 
+                        ? '(Min 100)' 
+                        : ''
+                }
               </span>
             </div>
             <textarea
@@ -645,8 +661,17 @@ export default function GeneratorForm({
               value={formState.referenceInformation}
               onChange={e => setFormState(prev => ({ ...prev, referenceInformation: e.target.value }))}
               placeholder="Masukkan semua materi referensi Anda di sini, seperti profil perusahaan, website, brosur, proposal, atau FAQ."
-              className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100 leading-relaxed font-sans"
+              className={`w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/15 focus:border-primary transition-all text-zinc-800 dark:text-zinc-100 leading-relaxed font-sans ${
+                formState.referenceInformation.length > 10000
+                  ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20'
+                  : 'border-zinc-200 dark:border-zinc-800'
+              }`}
             />
+            {formState.referenceInformation.length > 10000 && (
+              <p className="text-[11px] text-rose-500 font-medium">
+                ⚠️ Jumlah karakter melebihi batas maksimal 10.000 karakter. Mohon persingkat isi data acuan Anda sebelum melakukan generate.
+              </p>
+            )}
           </div>
 
           {/* Local File Parser helper */}

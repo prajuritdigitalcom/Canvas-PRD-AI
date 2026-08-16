@@ -23,10 +23,16 @@ export default function SettingsView({
 
   const availableModels = [
     {
+      id: 'gemini-3.7-flash',
+      name: 'Gemini 3.7 Flash',
+      badge: 'Flagship Utama (2026)',
+      desc: 'Model Hybrid Reasoning & Coding tercanggih dengan kecepatan tinggi dan penalaran adaptif mendalam.'
+    },
+    {
       id: 'gemini-3.6-flash',
       name: 'Gemini 3.6 Flash',
-      badge: 'Rekomendasi Utama (GA)',
-      desc: 'Model Generasi Terbaru (2026) dengan performa agentic & coding terbaik dan efisiensi tinggi.'
+      badge: 'Rekomendasi Cepat (GA)',
+      desc: 'Model Generasi 2026 dengan performa agentic & coding terbaik dan efisiensi tinggi.'
     },
     {
       id: 'gemini-3.5-flash',
@@ -37,7 +43,7 @@ export default function SettingsView({
     {
       id: 'gemini-3.1-pro-preview',
       name: 'Gemini 3.1 Pro Preview',
-      badge: 'Advanced Reasoning',
+      badge: 'Advanced Architecture',
       desc: 'Model kelas Pro untuk penalaran dan arsitektur produk yang sangat kompleks.'
     }
   ];
@@ -193,10 +199,10 @@ export default function SettingsView({
           <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-xs font-bold text-emerald-800 font-display">
-              Keamanan Terjamin (Privacy Policy)
+              Keamanan Terjamin (Privacy & Security)
             </h4>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
-              API Key hanya disimpan di memori browser Anda dan tidak dikirim ke server pihak ketiga manapun selain langsung ke endpoint Google Gemini API.
+              API Key Anda disimpan di browser dan hanya dikirimkan via proxy terenkripsi ke server aplikasi untuk diteruskan langsung ke Google Gemini API. API Key tidak pernah disimpan permanen atau dibagikan ke pihak ketiga.
             </p>
           </div>
         </div>

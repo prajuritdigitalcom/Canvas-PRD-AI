@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, FileText, Settings, CheckCircle } from 'lucide-react';
+import { Sparkles, FileText, Settings, HelpCircle, CheckCircle } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -18,6 +18,7 @@ export default function Sidebar({
     { id: 'generator', label: 'Generator PRD', icon: Sparkles },
     { id: 'output', label: 'Hasil PRD', icon: FileText },
     { id: 'settings', label: 'Pengaturan', icon: Settings },
+    { id: 'about', label: 'Panduan', icon: HelpCircle },
   ];
 
   return (

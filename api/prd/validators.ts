@@ -35,6 +35,8 @@ export function isLikelyTruncatedMarkdown(markdownText: string): { truncated: bo
   }
 
   const trimmed = markdownText.trim();
+  const lines = trimmed.split('\n');
+  const lastLine = lines[lines.length - 1].trim();
 
   // 1. Unclosed code fences check (odd count of ```)
   const codeFenceMatches = trimmed.match(/```/g);
@@ -42,22 +44,29 @@ export function isLikelyTruncatedMarkdown(markdownText: string): { truncated: bo
     return { truncated: true, reason: 'Terdeteksi code fence (```) yang tidak ditutup.' };
   }
 
-  // 2. Trailing incomplete connectors or diagram arrows at the very end
+  // 2. Trailing incomplete connectors, diagram arrows, or open brackets at the very end
   const trailingIncompleteRegex = /\b(dan|atau|untuk|dengan|seperti|sebagai|klik|misal|misalnya|yaitu|adalah|│|──>|-->|\(\s*|\[\s*|\{\s*)$/i;
   if (trailingIncompleteRegex.test(trimmed)) {
     return { truncated: true, reason: 'Teks berakhir di tengah kalimat/konektor diagram atau kurung terbuka.' };
   }
 
-  // 3. Unclosed table check (ends midway through a table row)
-  const lines = trimmed.split('\n');
-  const lastLine = lines[lines.length - 1].trim();
+  // 3. Trailing dangling punctuation on last line (e.g. ends with comma or unfinished quote)
+  if (/(?:,|\b[a-zA-Z0-9_]+\s*\(\s*["'][^"']*)$/.test(lastLine)) {
+    return { truncated: true, reason: 'Teks terputus di tengah kalimat atau parameter tanda kutip.' };
+  }
+
+  // 4. Trailing hanging list item with colon but no content (e.g., "7. **Storytelling Highlight:" or "- Feature:")
+  if (/^(?:\d+\.|\-|\*)\s+[^:\n]+:\s*$/.test(lastLine)) {
+    return { truncated: true, reason: 'List item terputus setelah tanda titik dua (:) tanpa isi.' };
+  }
+
+  // 5. Unclosed table check (ends midway through a table row)
   if (lastLine.startsWith('|') && !lastLine.endsWith('|')) {
     return { truncated: true, reason: 'Baris tabel Markdown terputus di tengah kolom.' };
   }
 
-  // 4. Trailing incomplete heading line (e.g., ends with "# " or "## Some Header")
+  // 6. Trailing incomplete heading line (e.g., ends with "# " or "## Some Header")
   if (/^#+\s*[^#\n]*$/.test(lastLine) && lines.length > 1) {
-    // If the last line is a heading with no body underneath
     return { truncated: true, reason: 'Dokumen terputus di baris judul (heading) tanpa isi.' };
   }
 
