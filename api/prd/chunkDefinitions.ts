@@ -66,7 +66,7 @@ export const PRD_CHUNKS: PRDChunkDefinition[] = [
   {
     id: 'ux',
     title: 'Information Architecture & UX',
-    description: 'Sitemap structure, information hierarchy, user journey flow, and responsive layout strategy.',
+    description: 'Peta anchor navigation dalam satu halaman, hierarki section, alur scroll/interaksi pengguna, dan strategi responsive — SEMUA dalam konteks satu halaman HTML tunggal, bukan multi-halaman.',
     requiredHeaders: [
       'Sitemap & Navigation Structure',
       'Information Architecture',
@@ -89,24 +89,24 @@ export const PRD_CHUNKS: PRDChunkDefinition[] = [
   },
   {
     id: 'pageBreakdown',
-    title: 'Detailed Page Specification',
-    description: 'Exhaustive section-by-section breakdown for every page, referencing design tokens and color contrast direction.',
+    title: 'Detailed Section-by-Section Specification',
+    description: 'Exhaustive section-by-section breakdown untuk SATU halaman landing page, referencing design tokens dan color contrast direction.',
     requiredHeaders: [
       'Page-by-Page & Section-by-Section Breakdown'
     ],
     subChunks: [
       {
-        id: 'pageBreakdown-primary',
-        title: 'Primary Page (Home Page Breakdown)',
-        focusScope: 'Focus strictly on Home Page sections: Hero, Partners/Clients, About/Story, Core Services/Products, Benefits, Main CTA.',
+        id: 'pageBreakdown-upper',
+        title: 'Upper-Page Sections (Hero to Core Offering)',
+        focusScope: 'Focus strictly on the UPPER portion of the single landing page: Hero, Trust/Social Proof Bar, About/Story, Core Services or Products, Value Proposition/Benefits. These are sections WITHIN the same page as everything in the other sub-chunk — do not treat this as a separate page.',
         requiredHeaders: [
           'Page-by-Page & Section-by-Section Breakdown'
         ]
       },
       {
-        id: 'pageBreakdown-secondary',
-        title: 'Secondary Pages & Footer Modals Breakdown',
-        focusScope: 'Focus on Secondary Pages (About, Services, Portfolio, Contact, FAQ) AND Footer Modals (Terms & Conditions, Privacy Policy text).',
+        id: 'pageBreakdown-lower',
+        title: 'Lower-Page Sections (Process to Footer)',
+        focusScope: 'Focus on the LOWER portion of the SAME single landing page: Process/How it Works, Portfolio/Gallery, Testimonials, Pricing/Packages (if relevant), FAQ, Final CTA/Form, Footer — including in-page legal modals (Terms & Conditions, Privacy Policy) as MODAL content, not separate pages.',
         requiredHeaders: [
           'Page-by-Page & Section-by-Section Breakdown'
         ]

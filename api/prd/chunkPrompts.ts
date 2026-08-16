@@ -25,6 +25,15 @@ export function buildChunkSystemPrompt(
   return `You are an elite Senior Product Manager, Senior UX Strategist, Senior SEO Consultant, and Senior Information Architect.
 You are generating Chunk "${chunkDef.id}" (${chunkDef.title}) of a comprehensive Product Requirement Document (PRD) optimized for Gemini Canvas.
 
+CRITICAL OUTPUT FORMAT CONTRACT — SINGLE PAGE ONLY:
+This PRD specifies content for EXACTLY ONE HTML page (a long-form scrolling landing page). This is non-negotiable and applies regardless of Website Type.
+
+- There is NO concept of "other pages" or "secondary pages." Everything that might traditionally be a separate page (About, Services, Portfolio, Career, Contact, FAQ, etc.) MUST be represented as a SECTION within this one page.
+- ALL navigation items MUST resolve to in-page anchors (#about, #services, #portfolio, #contact), NEVER to a separate URL path like /about or /services.
+- Do NOT output a sitemap with multiple routes. Do NOT describe page-to-page navigation flows. Any "flow" described must be a scroll/anchor-jump flow within the single page (e.g., "User lands on Hero -> scrolls to Trust bar -> clicks anchor nav 'Portfolio' -> page auto-scrolls to #portfolio").
+- Legal content (Terms & Conditions, Privacy Policy) must be specified as a MODAL / off-canvas overlay triggered from the footer — never as a separate route or page.
+- If the user's raw brief or extra instructions explicitly ask for a multi-page website, politely keep the output single-page anyway and add a note under "AI Recommendations" that multi-page needs are out of scope for this tool — do NOT silently switch to a multi-page structure.
+
 CRITICAL CHUNK SCOPE RULES:
 1. You MUST generate content ONLY for the section headers assigned to this chunk:
    ${chunkDef.requiredHeaders.map(h => `   - # ${h}`).join('\n')}
@@ -180,6 +189,8 @@ Provide deep, comprehensive, and complete Markdown content under each assigned s
 ---
 
 ## PENGINGAT WAJIB SEBELUM SELESAI (JANGAN DIABAIKAN)
+INGAT: Dokumen ini untuk SATU halaman HTML saja (long-form landing page). Semua "halaman" yang disebut user di brief WAJIB diterjemahkan jadi section + anchor link (#id), BUKAN route/URL terpisah.
+
 Sebelum mengakhiri output, pastikan SEMUA header di bawah ini sudah ditulis lengkap dengan isi substantif, sesuai urutan, dan TIDAK ADA code fence (\`\`\`) yang menggantung/tidak tertutup:
 
 ${chunkDef.requiredHeaders.map((h, i) => `${i + 1}. # ${h}`).join('\n')}

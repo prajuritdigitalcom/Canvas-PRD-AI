@@ -460,6 +460,9 @@ export default function GeneratorForm({
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
+              <p className="text-[10px] text-zinc-400 font-mono">
+                Semua tipe website di atas akan digenerate sebagai SATU halaman landing page yang panjang — bukan multi-halaman.
+              </p>
             </div>
 
             {/* Custom Website Type (conditional) */}

@@ -74,6 +74,20 @@ export function isLikelyTruncatedMarkdown(markdownText: string): { truncated: bo
 }
 
 /**
+ * Mendeteksi kebocoran struktur multi-page (URL path selain "/" atau anchor "#...")
+ * di dalam PRD yang seharusnya single-page only.
+ */
+export function detectMultiPageLeakage(markdownText: string): { leaked: boolean; matches: string[] } {
+  // Strip code blocks to avoid false positives in code snippets
+  const textWithoutCode = markdownText.replace(/```[\s\S]*?```/g, '');
+  // Cocokkan pola path ala routing: /kata-kata atau /kata/kata, TAPI abaikan
+  // yang muncul di dalam URL http(s), dan abaikan single "/" saja.
+  const pathRegex = /(?<!https?:\/\/[^\s]+)(?<!["'`\w])\/[a-z0-9]+(?:[-/][a-z0-9]+)+\/?/gi;
+  const matches = Array.from(new Set((textWithoutCode.match(pathRegex) || [])));
+  return { leaked: matches.length > 0, matches };
+}
+
+/**
  * Normalizes heading text for robust comparison (lowercases, removes Markdown symbols/punctuation).
  */
 export function normalizeHeaderTitle(rawHeader: string): string {
@@ -148,6 +162,12 @@ export function validateChunk(
     if (sectionBody.length < 20) {
       warnings.push(`Section "${currentHeader.title}" memiliki isi teks yang terlalu pendek atau kosong.`);
     }
+  }
+
+  // Check for multi-page leakage (especially in ux and pageBreakdown chunks)
+  const multiPageCheck = detectMultiPageLeakage(markdownText);
+  if (multiPageCheck.leaked) {
+    warnings.push(`Terdeteksi rute URL multi-page (${multiPageCheck.matches.slice(0, 3).join(', ')}). Seluruh navigasi harus berupa anchor in-page (#id).`);
   }
 
   const valid = missingHeaders.length === 0 && !truncationCheck.truncated && orderValid;
@@ -234,12 +254,21 @@ export function validateFinalDocument(
     warnings.push(`Status integritas Markdown: ${truncationCheck.reason}`);
   }
 
+  // 5. Check for multi-page leakage (single-page contract)
+  const multiPageCheck = detectMultiPageLeakage(fullMarkdown);
+  if (multiPageCheck.leaked) {
+    warnings.push(`Terdeteksi rute URL multi-page (${multiPageCheck.matches.slice(0, 4).join(', ')}). Seluruh navigasi wajib menggunakan anchor link (#id) dalam satu halaman.`);
+  } else {
+    passed.push('Memenuhi standar Single-Page Only (semua navigasi menggunakan anchor link in-page).');
+  }
+
   // Calculate objective score
   let score = 100;
   score -= missingHeaders.length * 8;
   score -= duplicateHeaders.length * 5;
   if (truncationCheck.truncated) score -= 15;
   if (!orderValid) score -= 5;
+  if (multiPageCheck.leaked) score -= Math.min(15, multiPageCheck.matches.length * 4);
   score = Math.max(40, Math.min(100, score));
 
   const complete = missingHeaders.length === 0 && !truncationCheck.truncated && hasFinalInstruction;

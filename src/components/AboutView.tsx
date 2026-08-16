@@ -57,6 +57,9 @@ export default function AboutView() {
         <p className="text-zinc-600 dark:text-zinc-400 text-base max-w-2xl mx-auto">
           Canvas PRD AI adalah web-app cerdas berbasis AI yang dirancang khusus untuk mengubah brief mentah yang berantakan menjadi blueprint Product Requirement Document (PRD) website profesional yang siap dipahami oleh Gemini Canvas.
         </p>
+        <p className="text-xs text-rose-600 dark:text-rose-400 font-medium max-w-xl mx-auto bg-rose-50/60 dark:bg-rose-950/20 py-2 px-4 rounded-xl border border-rose-100 dark:border-rose-900/30">
+          📌 <strong>Catatan:</strong> Canvas PRD AI didesain khusus untuk website <strong>single-page / landing page panjang</strong>. Semua navigasi diarahkan via anchor link (#id) dalam satu halaman.
+        </p>
       </div>
 
       {/* Why PRD is Crucial Card */}

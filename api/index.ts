@@ -311,7 +311,7 @@ Based on the brief, determine:
 9. SEO strategy: Suggest an SEO-optimized "metaTitle" (max 60 characters) and "metaDescription" (max 160 characters) tailored to this specific business, written in the requested project language.
 10. AI Confidence level (0-100) for business analysis, target audience, brand style, and SEO strategy.
 11. AI Assumptions: Suggest 3-5 assumptions made from the raw input.
-12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages, estimatedSections).
+12. Quick Review: Summary statistics (businessType, targetAudience, websiteGoal, brandStyle, cta, seoFocus, estimatedPages [always 1 for single-page landing page], estimatedSections [total in-page sections, typically 6-12]).
 13. Design Mood ID: Suggest one id from "${DESIGN_MOODS.map(m => m.id).join('", "')}".
 14. Generation Profile: Suggest one from "cepat", "seimbang", "analisis-mendalam". Pick "cepat" for very simple/brief drafts, "seimbang" as the standard default for most projects, or "analisis-mendalam" if the business model is intricate/requires deep architectural reasoning OR extensive multi-page documentation is explicitly requested.
 
