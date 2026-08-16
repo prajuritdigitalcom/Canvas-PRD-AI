@@ -1136,7 +1136,7 @@ export default function GeneratorForm({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {GENERATION_PROFILES.map((profile) => {
                     const isSelected = (formState.generationProfile || 'seimbang') === profile.id;
                     return (
